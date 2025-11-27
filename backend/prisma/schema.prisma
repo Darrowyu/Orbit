@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  password     String
+  name         String
+  avatar       String       @default("👤")
+  color        String       @default("bg-blue-100 text-blue-700")
+  isFirstLogin Boolean      @default(true)
+  isSuperAdmin Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  currentTeamId String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  tasks        Task[]       @relation("TaskAssignee")
+  subtasks     Subtask[]    @relation("SubtaskAssignee")
+  teamMembers  TeamMember[]
+  ownedTeams   Team[]       @relation("TeamOwner")
+  loginLogs    LoginLog[]
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String?
+  userAgent String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  code        String       @unique
+  inviteLink  String       @unique
+  ownerId     String
+  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id])
+  members     TeamMember[]
+  tasks       Task[]
+  createdAt   DateTime     @default(now())
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+  @@unique([userId, teamId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @default("")
+  status      String    @default("TODO")
+  priority    String    @default("MEDIUM")
+  assigneeId  String?
+  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  subtasks    Subtask[]
+  dueDate     DateTime?
+  dependsOn   String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Subtask {
+  id         String  @id @default(cuid())
+  title      String
+  completed  Boolean @default(false)
+  taskId     String
+  task       Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee   User?   @relation("SubtaskAssignee", fields: [assigneeId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([userId, read])
+}
