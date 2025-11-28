@@ -5,8 +5,10 @@ import { emitTaskUpdate, emitTaskDelete } from '../services/socket';
 
 interface TaskStore {
   tasks: Task[];
+  archivedTasks: Task[];
   isLoading: boolean;
   fetchTasks: () => Promise<void>;
+  fetchArchivedTasks: () => Promise<void>;
   addTask: (task: Task) => void;
   createTask: (data: Partial<Task>) => Promise<Task>;
   updateTask: (id: string, data: Partial<Task>) => Promise<void>;
@@ -16,10 +18,13 @@ interface TaskStore {
   moveTask: (id: string, status: TaskStatus) => Promise<{ success: boolean; error: string }>;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   assignSubtask: (taskId: string, subtaskId: string, assigneeId: string) => Promise<void>;
+  archiveTask: (id: string) => Promise<void>;
+  restoreTask: (id: string) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
+  archivedTasks: [],
   isLoading: false,
 
   fetchTasks: async () => {
@@ -30,6 +35,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     } catch {
       set({ isLoading: false });
     }
+  },
+
+  fetchArchivedTasks: async () => {
+    try {
+      const { data } = await taskApi.getArchived();
+      set({ archivedTasks: data });
+    } catch {}
   },
 
   addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),
@@ -90,5 +102,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     if (!task) return;
     const subtasks = task.subtasks.map((s) => (s.id === subtaskId ? { ...s, assigneeId: assigneeId || undefined } : s));
     await get().updateTask(taskId, { subtasks });
+  },
+
+  archiveTask: async (id) => {
+    const { data: archived } = await taskApi.archive(id);
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), archivedTasks: [archived, ...s.archivedTasks] }));
+  },
+
+  restoreTask: async (id) => {
+    const { data: restored } = await taskApi.restore(id);
+    set((s) => ({ archivedTasks: s.archivedTasks.filter((t) => t.id !== id), tasks: [restored, ...s.tasks] }));
   },
 }));

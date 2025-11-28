@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, TeamMember } from './types';
@@ -9,12 +9,13 @@ import { TeamSetup } from './components/TeamSetup';
 import { TeamSettings } from './components/TeamSettings';
 import { OnboardingGuide } from './components/OnboardingGuide';
 import { NotificationBell } from './components/NotificationBell';
+import { RiskAlert } from './components/RiskAlert';
 import { useDialog } from './components/ConfirmDialog';
 import { Button } from './components/Button';
 import { useAuthStore } from './stores/authStore';
 import { useTaskStore } from './stores/taskStore';
 import { useTeamStore } from './stores/teamStore';
-import { connectSocket, disconnectSocket } from './services/socket';
+
 
 const COLUMN_CONFIG = [
   { id: TaskStatus.TODO, title: '待处理', color: 'bg-slate-50 border-slate-200' },
@@ -25,8 +26,10 @@ const COLUMN_CONFIG = [
 
 type SortOption = 'DEFAULT' | 'PRIORITY_DESC' | 'DATE_DESC';
 
-const DependencyLines = ({ tasks, selectedTaskId }: { tasks: Task[]; selectedTaskId: string | null }) => {
+const DependencyLines = React.memo(({ tasks, selectedTaskId, isDragging }: { tasks: Task[]; selectedTaskId: string | null; isDragging: boolean }) => {
   const [paths, setPaths] = useState<React.ReactElement[]>([]);
+  const rafRef = React.useRef<number>(0);
+
   useEffect(() => {
     const calc = () => {
       const newPaths: React.ReactElement[] = [];
@@ -58,11 +61,14 @@ const DependencyLines = ({ tasks, selectedTaskId }: { tasks: Task[]; selectedTas
       });
       setPaths(newPaths);
     };
+
+    const loop = () => { calc(); if (isDragging) rafRef.current = requestAnimationFrame(loop); };
     calc();
-    const interval = setInterval(calc, 50);
+    if (isDragging) rafRef.current = requestAnimationFrame(loop);
     window.addEventListener('resize', calc);
-    return () => { clearInterval(interval); window.removeEventListener('resize', calc); };
-  }, [tasks, selectedTaskId]);
+    return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('resize', calc); };
+  }, [tasks, selectedTaskId, isDragging]);
+
   return (
     <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ minWidth: '100%', minHeight: '100%' }}>
       <defs>
@@ -73,12 +79,12 @@ const DependencyLines = ({ tasks, selectedTaskId }: { tasks: Task[]; selectedTas
       {paths}
     </svg>
   );
-};
+});
 
 const App: React.FC = () => {
   const { user, checkAuth, logout, updateUser, isInitialized } = useAuthStore();
   const navigate = useNavigate();
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask, moveTask, toggleSubtask, assignSubtask } = useTaskStore();
+  const { tasks, archivedTasks, fetchTasks, fetchArchivedTasks, createTask, updateTask, deleteTask, moveTask, toggleSubtask, assignSubtask, archiveTask, restoreTask } = useTaskStore();
   const { currentTeam, members, fetchTeams, fetchMembers } = useTeamStore();
   const { confirm, alert } = useDialog();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,19 +95,27 @@ const App: React.FC = () => {
   const [sortOption, setSortOption] = useState<SortOption>('DEFAULT');
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
   useEffect(() => {
     if (user?.currentTeamId) {
-      connectSocket();
       fetchTeams();
       fetchMembers();
       fetchTasks();
       if (user.isFirstLogin) setShowOnboarding(true);
     }
-    return () => { disconnectSocket(); };
   }, [user?.currentTeamId, fetchTeams, fetchMembers, fetchTasks, user?.isFirstLogin]);
+
+  const handleMove = useCallback(async (taskId: string, newStatus: TaskStatus) => { const result = await moveTask(taskId, newStatus); if (!result.success && result.error) await alert({ title: '无法移动任务', message: result.error, type: 'warning' }); }, [moveTask, alert]);
+  const handleDelete = useCallback(async (taskId: string) => { if (await confirm({ title: '删除任务', message: '确定要删除这个任务吗？此操作不可恢复。', type: 'danger', confirmText: '删除' })) await deleteTask(taskId); }, [confirm, deleteTask]);
+  const handleArchive = useCallback(async (taskId: string) => { if (await confirm({ title: '归档任务', message: '归档后任务将从看板隐藏，可在归档列表中恢复。', type: 'info', confirmText: '归档' })) await archiveTask(taskId); }, [confirm, archiveTask]);
+  const handleRestore = useCallback(async (taskId: string) => { await restoreTask(taskId); }, [restoreTask]);
+  const handleShowArchived = useCallback(() => { fetchArchivedTasks(); setShowArchived(true); }, [fetchArchivedTasks]);
+  const handleToggle = useCallback(async (taskId: string, subtaskId: string) => { await toggleSubtask(taskId, subtaskId); }, [toggleSubtask]);
+  const handleAssign = useCallback(async (taskId: string, subtaskId: string, assigneeId: string) => { await assignSubtask(taskId, subtaskId, assigneeId); }, [assignSubtask]);
 
   if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>;
   if (!user) return <LoginModal />;
@@ -113,11 +127,6 @@ const App: React.FC = () => {
     setIsModalOpen(false);
     setEditingTask(null);
   };
-
-  const handleMove = async (taskId: string, newStatus: TaskStatus) => { const result = await moveTask(taskId, newStatus); if (!result.success && result.error) await alert({ title: '无法移动任务', message: result.error, type: 'warning' }); };
-  const handleDelete = async (taskId: string) => { if (await confirm({ title: '删除任务', message: '确定要删除这个任务吗？此操作不可恢复。', type: 'danger', confirmText: '删除' })) await deleteTask(taskId); };
-  const handleToggle = async (taskId: string, subtaskId: string) => { await toggleSubtask(taskId, subtaskId); };
-  const handleAssign = async (taskId: string, subtaskId: string, assigneeId: string) => { await assignSubtask(taskId, subtaskId, assigneeId); };
 
   const handleCreateFromSubtask = async (subtaskTitle: string, parentTaskId: string, parentTitle: string, parentDescription: string) => {
     const { aiApi } = await import('./services/api');
@@ -135,11 +144,13 @@ const App: React.FC = () => {
   };
 
   const onDragEnd = async (result: DropResult) => {
+    setIsDragging(false);
     const { source, destination } = result;
     if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
     const destStatus = destination.droppableId as TaskStatus;
     await moveTask(result.draggableId, destStatus);
   };
+  const onDragStart = () => setIsDragging(true);
 
   const getSorted = (list: Task[]) => {
     if (sortOption === 'DEFAULT') return list;
@@ -166,7 +177,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900" onClick={() => setSelectedTaskId(null)}>
+    <div className={`min-h-screen flex flex-col bg-slate-50 text-slate-900 ${isDragging ? 'select-none' : ''}`} onClick={() => setSelectedTaskId(null)}>
       {showOnboarding && <OnboardingGuide onComplete={() => { setShowOnboarding(false); updateUser({ isFirstLogin: false }); }} />}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -183,28 +194,33 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2 border-l pl-4 ml-2">
               <NotificationBell />
               {user.isSuperAdmin && <button onClick={() => navigate('/admin')} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="管理后台"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>}
-              <button onClick={() => navigate('/profile')} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm hover:ring-2 hover:ring-indigo-300 transition-all cursor-pointer ${user.color}`} title="个人设置">{user.avatar}</button>
+              <button onClick={() => navigate('/profile')} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm hover:ring-2 hover:ring-indigo-300 transition-all cursor-pointer overflow-hidden ${user.avatar?.startsWith('/uploads') ? 'bg-gray-100' : user.color}`} title="个人设置">
+                {user.avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${user.avatar}`} alt="avatar" className="w-full h-full object-cover" /> : user.avatar}
+              </button>
               <button onClick={logout} className="text-gray-400 hover:text-gray-600 p-1" title="退出登录"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
             </div>
           </div>
         </div>
       </header>
       <main className="flex-1 overflow-x-auto overflow-y-hidden relative" id="kanban-board-container">
-        <DependencyLines tasks={tasks} selectedTaskId={selectedTaskId} />
-        <DragDropContext onDragEnd={onDragEnd}>
+        <DependencyLines tasks={tasks} selectedTaskId={selectedTaskId} isDragging={isDragging} />
+        <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
           <div className="h-full flex px-4 sm:px-6 lg:px-8 py-8 gap-6 min-w-max">
             {COLUMN_CONFIG.map((col) => {
               const colTasks = getSorted(filtered.filter((t) => t.status === col.id));
               return (
                 <div key={col.id} className="w-80 flex-shrink-0 flex flex-col">
-                  <div className="flex items-center justify-between mb-4 px-1"><div className="flex items-center gap-2"><h2 className="font-bold text-gray-700">{col.title}</h2><span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">{colTasks.length}</span></div></div>
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <div className="flex items-center gap-2"><h2 className="font-bold text-gray-700">{col.title}</h2><span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">{colTasks.length}</span></div>
+                    {col.id === TaskStatus.DONE && <button onClick={handleShowArchived} className="text-xs text-gray-400 hover:text-indigo-600 flex items-center gap-1" title="查看归档"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>归档</button>}
+                  </div>
                   <Droppable droppableId={col.id}>
                     {(provided, snapshot) => (
                       <div {...provided.droppableProps} ref={provided.innerRef} className={`flex-1 rounded-xl p-2 transition-colors duration-200 ${snapshot.isDraggingOver ? 'bg-indigo-50/50 ring-2 ring-indigo-100 ring-inset' : 'bg-gray-100/50'} ${col.color.split(' ')[0]} bg-opacity-30`} style={{ minHeight: '150px' }}>
                         <div className="flex flex-col gap-3">
                           {colTasks.map((task, idx) => (
                             <Draggable key={task.id} draggableId={task.id} index={idx} isDragDisabled={sortOption !== 'DEFAULT'}>
-                              {(prov, snap) => <TaskCard task={task} onMove={handleMove} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onToggleSubtask={handleToggle} onAssignSubtask={handleAssign} onCreateFromSubtask={handleCreateFromSubtask} onSelect={setSelectedTaskId} isSelected={selectedTaskId === task.id} dependencyType={getRelation(task.id)} isDragging={snap.isDragging} teamMembers={members as User[]} innerRef={prov.innerRef} draggableProps={prov.draggableProps} dragHandleProps={prov.dragHandleProps} style={prov.draggableProps.style} />}
+                              {(prov, snap) => <TaskCard task={task} onMove={handleMove} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onArchive={handleArchive} onToggleSubtask={handleToggle} onAssignSubtask={handleAssign} onCreateFromSubtask={handleCreateFromSubtask} onSelect={setSelectedTaskId} isSelected={selectedTaskId === task.id} dependencyType={getRelation(task.id)} isDragging={snap.isDragging} teamMembers={members as User[]} innerRef={prov.innerRef} draggableProps={prov.draggableProps} dragHandleProps={prov.dragHandleProps} style={prov.draggableProps.style} />}
                             </Draggable>
                           ))}
                           {provided.placeholder}
@@ -218,11 +234,36 @@ const App: React.FC = () => {
           </div>
         </DragDropContext>
       </main>
-      <CreateTaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSaveTask} teamMembers={members as User[]} initialData={editingTask} allTasks={tasks} />
+      <CreateTaskModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingTask(null); }} onSubmit={handleSaveTask} teamMembers={members as User[]} initialData={editingTask} allTasks={tasks} />
       <TeamSettings isOpen={isTeamSettingsOpen} onClose={() => setIsTeamSettingsOpen(false)} />
-      
+      <RiskAlert tasks={tasks} />
+      {showArchived && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowArchived(false)}>
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                <h2 className="text-lg font-bold text-gray-900">已归档任务</h2>
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{archivedTasks.length}</span>
+              </div>
+              <button onClick={() => setShowArchived(false)} className="text-gray-400 hover:text-gray-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {archivedTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">暂无归档任务</div>
+              ) : (
+                <div className="space-y-3">
+                  {archivedTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} onMove={() => {}} onEdit={() => {}} onDelete={handleDelete} onRestore={handleRestore} onToggleSubtask={() => {}} onAssignSubtask={() => {}} onCreateFromSubtask={async () => {}} teamMembers={members as User[]} isArchiveView />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default App;

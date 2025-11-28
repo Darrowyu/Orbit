@@ -7,9 +7,24 @@ import { NotificationsService } from '../notifications/notifications.service';
 export class TasksService {
   constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
-  async findAll(teamId: string) {
-    const tasks = await this.prisma.task.findMany({ where: { teamId }, include: { subtasks: true }, orderBy: { createdAt: 'desc' } });
+  async findAll(teamId: string, includeArchived = false) {
+    const tasks = await this.prisma.task.findMany({ where: { teamId, isArchived: includeArchived ? undefined : false }, include: { subtasks: true }, orderBy: { createdAt: 'desc' } });
     return tasks.map(this.format);
+  }
+
+  async findArchived(teamId: string) {
+    const tasks = await this.prisma.task.findMany({ where: { teamId, isArchived: true }, include: { subtasks: true }, orderBy: { archivedAt: 'desc' } });
+    return tasks.map(this.format);
+  }
+
+  async archive(id: string) {
+    const task = await this.prisma.task.update({ where: { id }, data: { isArchived: true, archivedAt: new Date() }, include: { subtasks: true } });
+    return this.format(task);
+  }
+
+  async restore(id: string) {
+    const task = await this.prisma.task.update({ where: { id }, data: { isArchived: false, archivedAt: null }, include: { subtasks: true } });
+    return this.format(task);
   }
 
   async findOne(id: string) {
@@ -73,6 +88,6 @@ export class TasksService {
   }
 
   private format(task: any) {
-    return { ...task, createdAt: task.createdAt.toISOString(), dueDate: task.dueDate?.toISOString() || null };
+    return { ...task, createdAt: task.createdAt.toISOString(), dueDate: task.dueDate?.toISOString() || null, archivedAt: task.archivedAt?.toISOString() || null };
   }
 }

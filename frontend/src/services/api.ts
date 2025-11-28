@@ -41,22 +41,33 @@ export const teamApi = {
 
 export const taskApi = {
   getAll: () => api.get<Task[]>('/tasks'),
+  getArchived: () => api.get<Task[]>('/tasks/archived'),
   create: (data: Partial<Task>) => api.post<Task>('/tasks', data),
   update: (id: string, data: Partial<Task>) => api.patch<Task>(`/tasks/${id}`, data),
   delete: (id: string) => api.delete(`/tasks/${id}`),
+  archive: (id: string) => api.patch<Task>(`/tasks/${id}/archive`),
+  restore: (id: string) => api.patch<Task>(`/tasks/${id}/restore`),
 };
 
 export const userApi = {
   getTeam: () => api.get<TeamMember[]>('/users/team'),
   completeOnboarding: () => api.post('/users/complete-onboarding'),
   changePassword: (oldPassword: string, newPassword: string) => api.post('/users/change-password', { oldPassword, newPassword }),
-  updateProfile: (data: { name?: string; avatar?: string; color?: string }) => api.post('/users/profile', data),
+  updateProfile: (data: { name?: string; avatar?: string; color?: string; skills?: string[]; aiPrompt?: string }) => api.post('/users/profile', data),
   getMyTeams: () => api.get('/users/my-teams'),
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<{ url: string }>('/upload/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export const aiApi = {
-  generate: (title: string) => api.post<AIResponse>('/ai/generate', { title }),
+  generate: (title: string, customPrompt?: string) => api.post<AIResponse>('/ai/generate', { title, customPrompt }),
   subdivide: (subtaskTitle: string, parentContext?: string) => api.post<{ steps: string[] }>('/ai/subdivide', { subtaskTitle, parentContext }),
+  estimateWorkload: (taskTitle: string, description: string, subtasks: string[]) => api.post<{ hours: number; confidence: string; factors: string[] }>('/ai/estimate-workload', { taskTitle, description, subtasks }),
+  recommendAssignee: (taskTitle: string, description: string, teamMembers: any[], taskHistory: any[]) => api.post<{ recommendedId: string; reason: string; alternatives: { id: string; reason: string }[] }>('/ai/recommend-assignee', { taskTitle, description, teamMembers, taskHistory }),
+  detectRisks: (tasks: any[]) => api.post<{ taskId: string; riskLevel: string; reasons: string[]; suggestions: string[] }[]>('/ai/detect-risks', { tasks }),
 };
 
 export const notificationApi = {

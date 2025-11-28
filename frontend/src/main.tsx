@@ -6,6 +6,7 @@ import { AdminPage } from './pages/AdminPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { JoinPage } from './pages/JoinPage';
 import { DialogProvider } from './components/ConfirmDialog';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -17,8 +18,8 @@ ReactDOM.createRoot(rootElement).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/join/:inviteLink" element={<JoinPage />} />
         </Routes>
       </BrowserRouter>

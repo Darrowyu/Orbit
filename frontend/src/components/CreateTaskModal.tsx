@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, Priority, Subtask, User } from '../types';
 import { aiApi } from '../services/api';
 import { Button } from './Button';
+import { AIAssistPanel } from './AIAssistPanel';
+import { useAuthStore } from '../stores/authStore';
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +17,7 @@ interface Props {
 interface DraftSubtask { id: string; title: string; assigneeId?: string; }
 
 export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [] }) => {
+  const { user } = useAuthStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
@@ -41,14 +44,13 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
   }, [isOpen, initialData, teamMembers]);
 
   if (!isOpen) return null;
-
   const handleAiAssist = async () => {
     if (!title.trim()) return;
     setIsAiLoading(true);
     try {
-      const { data } = await aiApi.generate(title);
+      const { data } = await aiApi.generate(title, user?.aiPrompt);
       setDescription(data.description);
-      setSubtasks(data.subtasks.map((t) => ({ id: Math.random().toString(36).substr(2, 9), title: t, assigneeId })));
+      setSubtasks(data.subtasks.map((t) => ({ id: Math.random().toString(36).slice(2, 11), title: t, assigneeId })));
       setPriority(data.priority as Priority);
     } catch (e) { console.error(e); }
     finally { setIsAiLoading(false); }
@@ -128,7 +130,18 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
               </div>
               <button type="button" onClick={addSubtask} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center py-1 px-2 rounded hover:bg-indigo-50 transition-colors"><svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>添加子任务</button>
             </div>
-                      </div>
+            {!initialData && title && description && (
+              <AIAssistPanel
+                taskTitle={title}
+                description={description}
+                subtasks={subtasks.map(s => s.title)}
+                teamMembers={teamMembers}
+                taskHistory={allTasks.filter(t => t.status === TaskStatus.DONE).slice(0, 10)}
+                onAssigneeRecommend={(id) => setAssigneeId(id)}
+                onWorkloadEstimate={(hours) => console.log('预估工作量:', hours)}
+              />
+            )}
+          </div>
           <div className="p-6 border-t border-gray-100 shrink-0 flex justify-end gap-3"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">{initialData ? '保存修改' : '创建任务'}</Button></div>
         </form>
       </div>

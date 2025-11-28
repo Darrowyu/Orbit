@@ -14,6 +14,8 @@ model User {
   name         String
   avatar       String       @default("👤")
   color        String       @default("bg-blue-100 text-blue-700")
+  skills       String[]     @default([])
+  aiPrompt     String?
   isFirstLogin Boolean      @default(true)
   isSuperAdmin Boolean      @default(false)
   isActive     Boolean      @default(true)
@@ -74,8 +76,11 @@ model Task {
   subtasks    Subtask[]
   dueDate     DateTime?
   dependsOn   String[]  @default([])
+  isArchived  Boolean   @default(false)
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  @@index([teamId, isArchived])
 }
 
 model Subtask {
