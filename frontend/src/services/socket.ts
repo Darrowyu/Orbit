@@ -12,12 +12,12 @@ export const getSocket = () => socket;
 
 export const connectSocket = () => { // 建立 WebSocket 连接
   const token = useAuthStore.getState().token;
-  if (!token || socket?.connected) return;
+  if (!token || socket) return; // 已有连接实例则跳过
 
   socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 1000 });
 
   socket.on('connect', () => console.log('Socket connected'));
-  socket.on('disconnect', () => console.log('Socket disconnected'));
+  socket.on('disconnect', (reason) => { if (reason === 'io server disconnect' || reason === 'io client disconnect') console.log('Socket disconnected'); });
 
   socket.on('task:created', (task: Task) => useTaskStore.getState().addTask(task));
   socket.on('task:updated', (task: Task) => useTaskStore.getState().updateTaskLocal(task));

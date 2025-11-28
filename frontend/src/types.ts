@@ -19,6 +19,8 @@ export interface User {
   name: string;
   avatar: string;
   color: string;
+  skills?: string[];
+  aiPrompt?: string;
   isFirstLogin?: boolean;
   isSuperAdmin?: boolean;
   currentTeamId?: string;
@@ -30,6 +32,7 @@ export interface TeamMember {
   email: string;
   avatar: string;
   color: string;
+  skills?: string[];
   role?: TeamRole;
 }
 
@@ -62,6 +65,8 @@ export interface Task {
   createdAt: string;
   dueDate: string | null;
   dependsOn: string[];
+  isArchived?: boolean;
+  archivedAt?: string | null;
 }
 
 export interface AIResponse {

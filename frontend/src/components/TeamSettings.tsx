@@ -8,8 +8,9 @@ import { useDialog } from './ConfirmDialog';
 interface Props { isOpen: boolean; onClose: () => void; }
 
 export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { currentTeam, teams, members, switchTeam, updateMemberRole, removeMember, regenerateCode } = useTeamStore();
+  const { currentTeam, teams, switchTeam, updateMemberRole, removeMember, regenerateCode } = useTeamStore();
   const { user } = useAuthStore();
+  const { confirm } = useDialog();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !currentTeam) return null;
@@ -37,8 +38,6 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const copyCode = () => copyToClipboard(currentTeam.code);
   const copyLink = () => copyToClipboard(`${window.location.origin}/join/${currentTeam.inviteLink}`);
-
-  const { confirm } = useDialog();
 
   const handleRoleChange = async (memberId: string, role: string) => {
     if (await confirm({ title: '修改角色', message: `确定要修改该成员的角色为 ${role === 'admin' ? '管理员' : '成员'} 吗？`, type: 'warning' })) {
@@ -86,13 +85,19 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">团队成员 ({currentTeam.members.length})</label>
             <div className="space-y-2">
-              {currentTeam.members.map(m => (
+              {currentTeam.members.map(m => {
+                const isMe = m.user.id === user?.id;
+                const displayUser = isMe && user ? user : m.user; // 当前用户使用最新数据
+                const avatarUrl = displayUser.avatar?.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${displayUser.avatar}` : null;
+                return (
                 <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${m.user.color}`}>{m.user.avatar}</div>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg overflow-hidden ${avatarUrl ? 'bg-gray-100' : displayUser.color}`}>
+                      {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" /> : displayUser.avatar}
+                    </div>
                     <div>
-                      <div className="font-medium text-gray-900">{m.user.name} {m.user.id === user?.id && <span className="text-gray-400 text-sm">(我)</span>}</div>
-                      <div className="text-sm text-gray-500">{m.user.email}</div>
+                      <div className="font-medium text-gray-900">{displayUser.name} {isMe && <span className="text-gray-400 text-sm">(我)</span>}</div>
+                      <div className="text-sm text-gray-500">{displayUser.email}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -108,7 +113,7 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
                     )}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         </div>

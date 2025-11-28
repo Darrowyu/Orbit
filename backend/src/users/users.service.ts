@@ -27,8 +27,9 @@ export class UsersService {
     return { success: true };
   }
 
-  async updateProfile(userId: string, data: { name?: string; avatar?: string; color?: string }) {
-    return this.prisma.user.update({ where: { id: userId }, data, select: { id: true, name: true, avatar: true, color: true, email: true } });
+  async updateProfile(userId: string, data: { name?: string; avatar?: string; color?: string; skills?: string[]; aiPrompt?: string }) {
+    const updated = await this.prisma.user.update({ where: { id: userId }, data });
+    return { id: updated.id, name: updated.name, avatar: updated.avatar, color: updated.color, email: updated.email, skills: updated.skills, aiPrompt: updated.aiPrompt };
   }
 
   async getUserTeams(userId: string) {

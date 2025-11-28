@@ -7,3 +7,12 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 拖拽性能优化 - 防止闪烁 */
+.select-none * {
+  pointer-events: none !important;
+}
+
+[data-rbd-draggable-context-id] {
+  will-change: transform;
+}

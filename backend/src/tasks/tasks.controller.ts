@@ -19,6 +19,15 @@ export class TasksController {
   @Get()
   async findAll(@Request() req, @Query('teamId') teamId?: string) { return this.tasks.findAll(await this.getTeamId(req, teamId)); }
 
+  @Get('archived')
+  async findArchived(@Request() req) { return this.tasks.findArchived(await this.getTeamId(req)); }
+
+  @Patch(':id/archive')
+  archive(@Param('id') id: string) { return this.tasks.archive(id); }
+
+  @Patch(':id/restore')
+  restore(@Param('id') id: string) { return this.tasks.restore(id); }
+
   @Get(':id')
   findOne(@Param('id') id: string) { return this.tasks.findOne(id); }
 

@@ -18,11 +18,10 @@ export const AdminPage: React.FC = () => {
   const [pwdError, setPwdError] = useState('');
 
   useEffect(() => {
-    if (!user?.isSuperAdmin) { navigate('/'); return; }
     fetchStats();
     fetchUsers();
     fetchLoginLogs();
-  }, [user]);
+  }, []);
 
   useEffect(() => { if (tab === 'users') fetchUsers({ page, search, status: statusFilter }); }, [page, search, statusFilter, tab]);
 
@@ -54,7 +53,9 @@ export const AdminPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">{user?.name}</span>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${user?.color}`}>{user?.avatar}</div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm overflow-hidden ${user?.avatar?.startsWith('/uploads') ? 'bg-gray-100' : user?.color}`}>
+              {user?.avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${user.avatar}`} alt="avatar" className="w-full h-full object-cover" /> : user?.avatar}
+            </div>
           </div>
         </div>
       </header>
@@ -106,7 +107,9 @@ export const AdminPage: React.FC = () => {
                       <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 ${u.color}`}>{u.avatar}</span>
+                            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 overflow-hidden ${u.avatar?.startsWith('/uploads') ? 'bg-gray-100' : u.color}`}>
+                              {u.avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${u.avatar}`} alt="avatar" className="w-full h-full object-cover" /> : u.avatar}
+                            </span>
                             <div className="min-w-0">
                               <div className="font-medium text-gray-900 flex items-center gap-2 truncate">{u.name}{u.isSuperAdmin && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">管理员</span>}</div>
                               <div className="text-xs text-gray-400 truncate">{u.email}</div>
