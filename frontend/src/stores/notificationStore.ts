@@ -13,7 +13,7 @@ interface NotificationStore {
   addNotification: (notification: Notification) => void;
 }
 
-export const useNotificationStore = create<NotificationStore>((set, get) => ({
+export const useNotificationStore = create<NotificationStore>((set) => ({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
@@ -30,7 +30,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     try {
       const { data } = await notificationApi.getUnreadCount();
       set({ unreadCount: data });
-    } catch {}
+    } catch { }
   },
 
   markAsRead: async (id) => {

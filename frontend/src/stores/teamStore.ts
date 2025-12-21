@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Team, TeamMember } from '../types';
 import { teamApi, userApi } from '../services/api';
+import { switchTeam as switchSocketTeam } from '../services/socket';
 
 
 interface TeamStore {
@@ -39,7 +40,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     try {
       const { data } = await userApi.getTeam();
       set({ members: data });
-    } catch {}
+    } catch { }
   },
 
   createTeam: async (name) => {
@@ -63,6 +64,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   switchTeam: async (teamId) => {
     const { data } = await teamApi.switchTeam(teamId);
     set({ currentTeam: data });
+    switchSocketTeam(teamId); // 同步切换WebSocket团队房间
     await get().fetchMembers();
   },
 

@@ -4,12 +4,12 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   findByEmail(email: string) { return this.prisma.user.findUnique({ where: { email } }); }
   findById(id: string) { return this.prisma.user.findUnique({ where: { id } }); }
   create(data: { email: string; password: string; name: string; avatar: string; color: string }) { return this.prisma.user.create({ data }); }
-  
+
   async getTeamMembers(teamId: string) {
     const members = await this.prisma.teamMember.findMany({ where: { teamId }, include: { user: true } });
     return members.map(m => ({ id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color, role: m.role }));

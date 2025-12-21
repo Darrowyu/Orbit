@@ -5,7 +5,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) { }
 
   async findAll(teamId: string, includeArchived = false) {
     const tasks = await this.prisma.task.findMany({ where: { teamId, isArchived: includeArchived ? undefined : false }, include: { subtasks: true }, orderBy: { createdAt: 'desc' } });
@@ -56,8 +56,14 @@ export class TasksService {
     if (!oldTask) throw new NotFoundException('任务不存在');
     const { subtasks, dueDate, ...data } = dto;
     if (subtasks) {
-      await this.prisma.subtask.deleteMany({ where: { taskId: id } });
-      await this.prisma.subtask.createMany({ data: subtasks.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId, taskId: id })) });
+      const existingIds = oldTask.subtasks.map(s => s.id);
+      const newIds = subtasks.map(s => s.id);
+      const toDelete = existingIds.filter(id => !newIds.includes(id)); // 需要删除的
+      const toCreate = subtasks.filter(s => !existingIds.includes(s.id)); // 需要新建的
+      const toUpdate = subtasks.filter(s => existingIds.includes(s.id)); // 需要更新的
+      if (toDelete.length) await this.prisma.subtask.deleteMany({ where: { id: { in: toDelete } } });
+      if (toCreate.length) await this.prisma.subtask.createMany({ data: toCreate.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId, taskId: id })) });
+      for (const s of toUpdate) await this.prisma.subtask.update({ where: { id: s.id }, data: { title: s.title, completed: s.completed || false, assigneeId: s.assigneeId } });
     }
     const task = await this.prisma.task.update({
       where: { id },

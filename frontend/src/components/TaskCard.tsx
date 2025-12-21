@@ -144,4 +144,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
   );
 };
 
-export default React.memo(TaskCard);
+const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => { // 自定义比较函数优化重渲染
+  if (prev.task.id !== next.task.id) return false;
+  if (prev.task.title !== next.task.title) return false;
+  if (prev.task.description !== next.task.description) return false;
+  if (prev.task.status !== next.task.status) return false;
+  if (prev.task.priority !== next.task.priority) return false;
+  if (prev.task.assigneeId !== next.task.assigneeId) return false;
+  if (prev.task.dueDate !== next.task.dueDate) return false;
+  if (prev.task.subtasks.length !== next.task.subtasks.length) return false;
+  for (let i = 0; i < prev.task.subtasks.length; i++) {
+    const ps = prev.task.subtasks[i], ns = next.task.subtasks[i];
+    if (ps.id !== ns.id || ps.completed !== ns.completed || ps.assigneeId !== ns.assigneeId) return false;
+  }
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.dependencyType !== next.dependencyType) return false;
+  if (prev.isDragging !== next.isDragging) return false;
+  if (prev.isArchiveView !== next.isArchiveView) return false;
+  return true;
+};
+
+export default React.memo(TaskCard, areEqual);

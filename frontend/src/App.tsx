@@ -29,19 +29,26 @@ type SortOption = 'DEFAULT' | 'PRIORITY_DESC' | 'DATE_DESC';
 const DependencyLines = React.memo(({ tasks, selectedTaskId, isDragging }: { tasks: Task[]; selectedTaskId: string | null; isDragging: boolean }) => {
   const [paths, setPaths] = useState<React.ReactElement[]>([]);
   const rafRef = React.useRef<number>(0);
+  const lastCalcRef = React.useRef<number>(0);
+
+  const taskDeps = React.useMemo(() => { // 预计算依赖关系
+    return tasks.filter(t => t.dependsOn?.length).map(t => ({ id: t.id, deps: t.dependsOn }));
+  }, [tasks]);
 
   useEffect(() => {
     const calc = () => {
+      const now = Date.now();
+      if (!isDragging && now - lastCalcRef.current < 16) return; // 非拖拽时节流
+      lastCalcRef.current = now;
       const newPaths: React.ReactElement[] = [];
       const container = document.getElementById('kanban-board-container');
       if (!container) return;
       const cRect = container.getBoundingClientRect();
-      tasks.forEach((task) => {
-        if (!task.dependsOn?.length) return;
-        const endEl = document.getElementById(`task-${task.id}`);
+      taskDeps.forEach(({ id: taskId, deps }) => {
+        const endEl = document.getElementById(`task-${taskId}`);
         if (!endEl) return;
         const endRect = endEl.getBoundingClientRect();
-        task.dependsOn.forEach((depId) => {
+        deps.forEach((depId) => {
           const startEl = document.getElementById(`task-${depId}`);
           if (!startEl) return;
           const startRect = startEl.getBoundingClientRect();
@@ -51,12 +58,12 @@ const DependencyLines = React.memo(({ tasks, selectedTaskId, isDragging }: { tas
           const endY = endRect.top + endRect.height / 2 - cRect.top;
           let color = '#E2E8F0', strokeWidth = 2, opacity = 0.4, markerId = 'arrow-gray';
           if (selectedTaskId) {
-            if (selectedTaskId === task.id) { color = '#F59E0B'; strokeWidth = 3; opacity = 1; markerId = 'arrow-amber'; }
+            if (selectedTaskId === taskId) { color = '#F59E0B'; strokeWidth = 3; opacity = 1; markerId = 'arrow-amber'; }
             else if (selectedTaskId === depId) { color = '#A855F7'; strokeWidth = 3; opacity = 1; markerId = 'arrow-purple'; }
             else { opacity = 0.1; }
           }
           const cpX = (startX + endX) / 2;
-          newPaths.push(<path key={`${depId}-${task.id}`} d={`M ${startX} ${startY} C ${cpX} ${startY}, ${cpX} ${endY}, ${endX} ${endY}`} stroke={color} strokeWidth={strokeWidth} fill="none" opacity={opacity} markerEnd={`url(#${markerId})`} style={{ transition: 'all 0.3s ease' }} />);
+          newPaths.push(<path key={`${depId}-${taskId}`} d={`M ${startX} ${startY} C ${cpX} ${startY}, ${cpX} ${endY}, ${endX} ${endY}`} stroke={color} strokeWidth={strokeWidth} fill="none" opacity={opacity} markerEnd={`url(#${markerId})`} style={{ transition: isDragging ? 'none' : 'all 0.3s ease' }} />);
         });
       });
       setPaths(newPaths);
@@ -67,7 +74,7 @@ const DependencyLines = React.memo(({ tasks, selectedTaskId, isDragging }: { tas
     if (isDragging) rafRef.current = requestAnimationFrame(loop);
     window.addEventListener('resize', calc);
     return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('resize', calc); };
-  }, [tasks, selectedTaskId, isDragging]);
+  }, [taskDeps, selectedTaskId, isDragging]);
 
   return (
     <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ minWidth: '100%', minHeight: '100%' }}>
@@ -182,7 +189,7 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 ring-1 ring-white/50"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3" strokeWidth="2.5" /><ellipse cx="12" cy="12" rx="8" ry="3" transform="rotate(-45 12 12)" strokeWidth="1.5" className="opacity-80" /></svg></div>
+            <img src="/Orbit_Logo.png" alt="Orbit" className="w-9 h-9 rounded-xl shadow-lg shadow-indigo-200" />
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-indigo-800 tracking-tight">Orbit</h1>
             {currentTeam && <button onClick={() => setIsTeamSettingsOpen(true)} className="ml-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-600 flex items-center gap-1 transition-colors"><span>{currentTeam.name}</span><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg></button>}
           </div>
@@ -192,6 +199,7 @@ const App: React.FC = () => {
             <select value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} className="appearance-none bg-slate-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 pl-3 pr-8 py-2 cursor-pointer hidden sm:block min-w-[120px]"><option value="DEFAULT">默认排序</option><option value="PRIORITY_DESC">优先级 (高→低)</option><option value="DATE_DESC">创建时间 (新→旧)</option></select>
             <Button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>}><span className="hidden sm:inline">新建任务</span><span className="sm:hidden">新建</span></Button>
             <div className="flex items-center gap-2 border-l pl-4 ml-2">
+              <button onClick={() => navigate('/dashboard')} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="仪表盘"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg></button>
               <NotificationBell />
               {user.isSuperAdmin && <button onClick={() => navigate('/admin')} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="管理后台"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>}
               <button onClick={() => navigate('/profile')} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm hover:ring-2 hover:ring-indigo-300 transition-all cursor-pointer overflow-hidden ${user.avatar?.startsWith('/uploads') ? 'bg-gray-100' : user.color}`} title="个人设置">
@@ -254,7 +262,7 @@ const App: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {archivedTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onMove={() => {}} onEdit={() => {}} onDelete={handleDelete} onRestore={handleRestore} onToggleSubtask={() => {}} onAssignSubtask={() => {}} onCreateFromSubtask={async () => {}} teamMembers={members as User[]} isArchiveView />
+                    <TaskCard key={task.id} task={task} onMove={() => { }} onEdit={() => { }} onDelete={handleDelete} onRestore={handleRestore} onToggleSubtask={() => { }} onAssignSubtask={() => { }} onCreateFromSubtask={async () => { }} teamMembers={members as User[]} isArchiveView />
                   ))}
                 </div>
               )}

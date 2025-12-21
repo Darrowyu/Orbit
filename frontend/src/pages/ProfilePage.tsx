@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userApi } from '../services/api';
 import { useDialog } from '../components/ConfirmDialog';
+import { AiConfigPanel } from '../components/AiConfigPanel';
 
-const AVATARS = ['👨‍💻', '👩‍💻', '👨‍🎨', '👩‍🎨', '🕵️‍♂️', '🕵️‍♀️', '👨‍🚀', '👩‍🚀', '👨‍💼', '👩‍💼', '🧑‍🔬', '👨‍🎤', '👩‍🎤', '👨‍🏫', '👩‍🏫', '🦸‍♂️', '🦸‍♀️', '🧙‍♂️', '🧙‍♀️', '🐱', '🐶', '🦊', '🐼', '🐨'];
+const AVATARS = ['😊', '😎', '🤓', '🧐', '🤖', '👻', '🐱', '🐶', '🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🌟', '⭐', '🎯', '🎨', '🎮', '🎵', '💎', '🔮', '🌈', '☀️'];
 const COLORS = [
   { value: 'bg-blue-100 text-blue-700', label: '蓝色' },
   { value: 'bg-pink-100 text-pink-700', label: '粉色' },
@@ -22,13 +23,12 @@ export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [tab, setTab] = useState<'profile' | 'teams' | 'password'>('profile');
+  const [tab, setTab] = useState<'profile' | 'teams' | 'password' | 'ai'>('profile');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [color, setColor] = useState(user?.color || '');
   const [name, setName] = useState(user?.name || '');
   const [skills, setSkills] = useState<string[]>(user?.skills || []);
   const [newSkill, setNewSkill] = useState('');
-  const [aiPrompt, setAiPrompt] = useState(user?.aiPrompt || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [oldPwd, setOldPwd] = useState('');
@@ -42,7 +42,7 @@ export const ProfilePage: React.FC = () => {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { data } = await userApi.updateProfile({ name, avatar, color, skills, aiPrompt: aiPrompt || undefined });
+      const { data } = await userApi.updateProfile({ name, avatar, color, skills });
       updateUser(data);
       await alert({ title: '保存成功', message: '个人资料已更新', type: 'info' });
     } catch { await alert({ title: '保存失败', message: '请稍后重试', type: 'danger' }); }
@@ -96,9 +96,9 @@ export const ProfilePage: React.FC = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
         <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
-          {(['profile', 'teams', 'password'] as const).map((t) => (
+          {(['profile', 'teams', 'password', 'ai'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${tab === t ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              {t === 'profile' ? '个人资料' : t === 'teams' ? '我的团队' : '修改密码'}
+              {t === 'profile' ? '个人资料' : t === 'teams' ? '我的团队' : t === 'password' ? '修改密码' : 'AI 设置'}
             </button>
           ))}
         </div>
@@ -158,23 +158,6 @@ export const ProfilePage: React.FC = () => {
                   <button onClick={addSkill} disabled={!newSkill.trim()} className="px-4 py-2 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 transition-colors disabled:opacity-50">添加</button>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                  AI 提示词定制
-                </label>
-                <p className="text-xs text-gray-500 mb-2">自定义 AI 生成任务时的提示词，留空则使用默认提示词</p>
-                <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} rows={4} placeholder="例如：你是一个敏捷开发专家，请用 Scrum 方法论来拆解任务..." className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm border p-3 font-mono" />
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-start gap-2 text-xs text-gray-500 bg-purple-50 p-2 rounded">
-                    <svg className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <div>
-                      <div>可用变量：<code className="bg-white px-1 rounded">{'{title}'}</code> 任务标题</div>
-                      <div className="mt-1">系统会自动添加 JSON 格式要求，无需在提示词中指定</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
               <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">{saving ? '保存中...' : '保存修改'}</button>
             </div>
           </div>
@@ -220,6 +203,14 @@ export const ProfilePage: React.FC = () => {
               {pwdError && <p className="text-sm text-red-500">{pwdError}</p>}
               <button onClick={handleChangePassword} className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">修改密码</button>
             </div>
+          </div>
+        )}
+
+        {tab === 'ai' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">自定义 AI 模型</h3>
+            <p className="text-sm text-gray-500 mb-6">配置您自己的 AI API Key，使用您偏好的模型进行任务智能生成。未配置时将使用系统默认模型。</p>
+            <AiConfigPanel />
           </div>
         )}
       </div>

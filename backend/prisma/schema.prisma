@@ -8,25 +8,31 @@ datasource db {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   password     String
   name         String
-  avatar       String       @default("👤")
-  color        String       @default("bg-blue-100 text-blue-700")
-  skills       String[]     @default([])
+  avatar       String         @default("👤")
+  color        String         @default("bg-blue-100 text-blue-700")
+  skills       String[]       @default([])
   aiPrompt     String?
-  isFirstLogin Boolean      @default(true)
-  isSuperAdmin Boolean      @default(false)
-  isActive     Boolean      @default(true)
+  // 用户自定义AI模型配置
+  aiProvider   String?        // gemini | openai | deepseek | moonshot | zhipu | custom
+  aiApiKey     String?        // 用户的API Key (加密存储)
+  aiBaseUrl    String?        // 自定义Base URL (OpenAI兼容格式)
+  aiModelName  String?        // 自定义模型名称
+  isFirstLogin Boolean        @default(true)
+  isSuperAdmin Boolean        @default(false)
+  isActive     Boolean        @default(true)
   currentTeamId String?
   lastLoginAt  DateTime?
-  createdAt    DateTime     @default(now())
-  tasks        Task[]       @relation("TaskAssignee")
-  subtasks     Subtask[]    @relation("SubtaskAssignee")
+  createdAt    DateTime       @default(now())
+  tasks        Task[]         @relation("TaskAssignee")
+  subtasks     Subtask[]      @relation("SubtaskAssignee")
   teamMembers  TeamMember[]
-  ownedTeams   Team[]       @relation("TeamOwner")
+  ownedTeams   Team[]         @relation("TeamOwner")
   loginLogs    LoginLog[]
+  notifications Notification[]
 }
 
 model LoginLog {
@@ -70,7 +76,7 @@ model Task {
   status      String    @default("TODO")
   priority    String    @default("MEDIUM")
   assigneeId  String?
-  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   teamId      String
   team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]
@@ -90,12 +96,13 @@ model Subtask {
   taskId     String
   task       Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   assigneeId String?
-  assignee   User?   @relation("SubtaskAssignee", fields: [assigneeId], references: [id])
+  assignee   User?   @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 }
 
 model Notification {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
   message   String

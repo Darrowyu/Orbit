@@ -1,18 +1,320 @@
 @import "tailwindcss";
 
-body {
-  font-family: 'Noto Sans SC', sans-serif;
-  background-color: #f8fafc;
+@theme {
+  /* 覆盖系统默认的 indigo 色系为 Makrite Orbit Navy 品牌色系 */
+  /* 这样所有使用 bg-indigo-600 的地方会自动变为深海军蓝 */
+  --color-indigo-50: #f8fafc;
+  --color-indigo-100: #f1f5f9;
+  --color-indigo-200: #e2e8f0;
+  --color-indigo-300: #cbd5e1;
+  --color-indigo-400: #94a3b8;
+  --color-indigo-500: #0f4c81;
+  /* 辅色：经典蓝 */
+  --color-indigo-600: #001c3d;
+  /* 主色：深海军蓝 */
+  --color-indigo-700: #001633;
+  --color-indigo-800: #001229;
+  --color-indigo-900: #000c1a;
+  --color-indigo-950: #00060d;
+
+  /* 同时覆盖 violet，因为有些组件可能混用了 */
+  --color-violet-500: #0f4c81;
+  --color-violet-600: #001c3d;
 }
 
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* 拖拽性能优化 - 防止闪烁 */
+/* ========== 设计令牌系统 ========== */
+:root {
+  /* 主色调 - Makrite Orbit Navy */
+  --color-primary: 0 28 61;
+  /* #001C3D Orbit Navy */
+  --color-primary-light: 15 76 129;
+  /* #0F4C81 Classic Blue (Hover) */
+  --color-primary-dark: 0 18 41;
+  /* #001229 Darker Navy (Active) */
+
+  /* 辅助色 */
+  --color-success: 16 185 129;
+  /* emerald-500 */
+  --color-warning: 245 158 11;
+  /* amber-500 */
+  --color-danger: 220 38 38;
+  /* red-600 */
+  --color-info: 56 189 248;
+  /* sky-400 (Cyan-like for accents) */
+
+  /* 中性色 */
+  --color-bg-primary: 248 250 252;
+  /* slate-50 */
+  --color-bg-secondary: 241 245 249;
+  /* slate-100 */
+  --color-bg-tertiary: 226 232 240;
+  /* slate-200 */
+  --color-surface: 255 255 255;
+  --color-text-primary: 15 23 42;
+  /* slate-900 */
+  --color-text-secondary: 71 85 105;
+  /* slate-600 */
+  --color-text-tertiary: 148 163 184;
+  /* slate-400 */
+  --color-border: 226 232 240;
+  /* slate-200 */
+
+  /* 间距 */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* 圆角 */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* 动画时长 */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* 缓动函数 */
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 暗色主题 */
+[data-theme="dark"] {
+  --color-bg-primary: 15 23 42;
+  /* slate-900 */
+  --color-bg-secondary: 30 41 59;
+  /* slate-800 */
+  --color-bg-tertiary: 51 65 85;
+  /* slate-700 */
+  --color-surface: 30 41 59;
+  --color-text-primary: 248 250 252;
+  /* slate-50 */
+  --color-text-secondary: 203 213 225;
+  /* slate-300 */
+  --color-text-tertiary: 148 163 184;
+  /* slate-400 */
+  --color-border: 51 65 85;
+  /* slate-700 */
+}
+
+/* ========== 基础样式 ========== */
+body {
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: rgb(var(--color-bg-primary));
+  color: rgb(var(--color-text-primary));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========== 动画 ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp var(--duration-normal) var(--ease-out);
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-in-right {
+  animation: slideInRight var(--duration-normal) var(--ease-out);
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--duration-fast) var(--ease-spring);
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* 交错动画 */
+.stagger-1 {
+  animation-delay: 50ms;
+}
+
+.stagger-2 {
+  animation-delay: 100ms;
+}
+
+.stagger-3 {
+  animation-delay: 150ms;
+}
+
+.stagger-4 {
+  animation-delay: 200ms;
+}
+
+.stagger-5 {
+  animation-delay: 250ms;
+}
+
+/* ========== 实用工具类 ========== */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, rgb(var(--color-primary)), #0F4C81);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, rgb(var(--color-primary)), #0F4C81);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 悬浮卡片效果 */
+.card-hover {
+  transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 拖拽性能优化 */
 .select-none * {
   pointer-events: none !important;
 }
 
 [data-rbd-draggable-context-id] {
   will-change: transform;
+}
+
+/* 焦点样式 */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.3);
+}
+
+/* 按钮按压效果 */
+.btn-press:active {
+  transform: scale(0.98);
 }
