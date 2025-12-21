@@ -7,13 +7,13 @@ import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private users: UsersService, private jwt: JwtService, private prisma: PrismaService) {}
+  constructor(private users: UsersService, private jwt: JwtService, private prisma: PrismaService) { }
 
   async register(dto: RegisterDto) {
     const exists = await this.users.findByEmail(dto.email);
     if (exists) throw new ConflictException('邮箱已被注册');
     const hash = await bcrypt.hash(dto.password, 10);
-    const avatars = ['👨‍💻', '👩‍🎨', '🕵️‍♂️', '👨‍🚀', '👩‍💼', '🧑‍🔬', '👨‍🎤', '👩‍🏫'];
+    const avatars = ['😊', '😎', '🤓', '🧐', '🤖', '👻', '🐱', '🐶']; // 使用简单emoji避免组合字符显示问题
     const colors = ['bg-blue-100 text-blue-700', 'bg-pink-100 text-pink-700', 'bg-green-100 text-green-700', 'bg-purple-100 text-purple-700', 'bg-orange-100 text-orange-700'];
     const user = await this.users.create({
       email: dto.email, password: hash, name: dto.name,

@@ -69,7 +69,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
     onClose();
   };
 
-  const addSubtask = () => setSubtasks([...subtasks, { id: Math.random().toString(36).substr(2, 9), title: '', assigneeId }]);
+  const addSubtask = () => setSubtasks([...subtasks, { id: Math.random().toString(36).slice(2, 11), title: '', assigneeId }]);
   const updateSubtask = (id: string, u: Partial<DraftSubtask>) => setSubtasks(subtasks.map((s) => (s.id === id ? { ...s, ...u } : s)));
   const removeSubtask = (id: string) => setSubtasks(subtasks.filter((s) => s.id !== id));
 

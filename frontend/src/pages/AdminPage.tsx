@@ -70,18 +70,51 @@ export const AdminPage: React.FC = () => {
         </div>
 
         {tab === 'stats' && stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {[{ label: '总用户', value: stats.totalUsers, color: 'border-blue-200 bg-blue-50' },
-              { label: '活跃用户', value: stats.activeUsers, color: 'border-green-200 bg-green-50' },
-              { label: '已禁用', value: stats.disabledUsers, color: 'border-red-200 bg-red-50' },
-              { label: '团队数', value: stats.totalTeams, color: 'border-purple-200 bg-purple-50' },
-              { label: '任务数', value: stats.totalTasks, color: 'border-orange-200 bg-orange-50' },
-            ].map((s) => (
-              <div key={s.label} className={`p-5 rounded-xl border ${s.color}`}>
-                <div className="text-2xl font-bold text-gray-800">{s.value}</div>
-                <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[
+                { label: '总用户', value: stats.totalUsers, icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50' },
+                { label: '活跃用户', value: stats.activeUsers, icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, color: 'from-green-500 to-emerald-600', bgColor: 'bg-green-50' },
+                { label: '已禁用', value: stats.disabledUsers, icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>, color: 'from-red-500 to-rose-600', bgColor: 'bg-red-50' },
+                { label: '团队数', value: stats.totalTeams, icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-50' },
+                { label: '任务数', value: stats.totalTasks, icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>, color: 'from-orange-500 to-amber-600', bgColor: 'bg-orange-50' },
+              ].map((s, i) => (
+                <div key={s.label} className={`p-5 rounded-2xl bg-white border border-gray-100 shadow-sm card-hover animate-fade-in-up`} style={{ animationDelay: `${i * 50}ms` }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-white shadow-lg`}>{s.icon}</div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{s.value}</div>
+                  <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">快速概览</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                  <div className="text-sm text-gray-500 mb-2">用户活跃率</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-gray-900">{stats.totalUsers ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}%</span>
+                    <span className="text-sm text-green-600">正常</span>
+                  </div>
+                  <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalUsers ? (stats.activeUsers / stats.totalUsers) * 100 : 0}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-2">平均每团队成员</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.totalTeams ? (stats.totalUsers / stats.totalTeams).toFixed(1) : 0}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-2">平均每用户任务</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.totalUsers ? (stats.totalTasks / stats.totalUsers).toFixed(1) : 0}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-2">平均每团队任务</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.totalTeams ? (stats.totalTasks / stats.totalTeams).toFixed(1) : 0}</div>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         )}
 

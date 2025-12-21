@@ -41,7 +41,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data } = await taskApi.getArchived();
       set({ archivedTasks: data });
-    } catch {}
+    } catch (e) { console.error('Failed to fetch archived tasks:', e); }
   },
 
   addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),

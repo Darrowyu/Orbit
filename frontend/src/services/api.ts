@@ -60,6 +60,10 @@ export const userApi = {
     formData.append('file', file);
     return api.post<{ url: string }>('/upload/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  // AI 配置管理
+  getAiConfig: () => api.get<{ aiProvider: string | null; aiApiKey: string | null; aiBaseUrl: string | null; aiModelName: string | null; aiPrompt: string | null; isConfigured: boolean }>('/users/ai-config'),
+  saveAiConfig: (data: { aiProvider?: string; aiApiKey?: string; aiBaseUrl?: string; aiModelName?: string; aiPrompt?: string; clearConfig?: boolean }) => api.post<{ success: boolean; message: string }>('/users/ai-config', data),
+  testAiConfig: (data: { aiProvider: string; aiApiKey: string; aiBaseUrl?: string; aiModelName?: string }) => api.post<{ success: boolean; message: string; response?: string }>('/users/ai-config/test', data),
 };
 
 export const aiApi = {

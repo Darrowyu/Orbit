@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { data } = await authApi.me();
           set({ user: data, isInitialized: true });
-          connectSocket();
+          connectSocket(data.currentTeamId || undefined);
         } catch {
           get().logout();
           set({ isInitialized: true });
