@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { aiApi } from '../services/api';
 import { Task } from '../types';
 
@@ -8,10 +8,6 @@ export const RiskAlert: React.FC<Props> = ({ tasks }) => {
   const [risks, setRisks] = useState<{ taskId: string; riskLevel: string; reasons: string[]; suggestions: string[] }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (tasks.length > 0) detectRisks();
-  }, [tasks.length]);
 
   const detectRisks = async () => {
     setLoading(true);
@@ -24,14 +20,13 @@ export const RiskAlert: React.FC<Props> = ({ tasks }) => {
   };
 
   const highRisks = risks.filter(r => r.riskLevel === 'high');
-  if (risks.length === 0) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-40">
       {!isOpen ? (
-        <button onClick={() => setIsOpen(true)} className="relative bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+        <button onClick={() => { setIsOpen(true); if (risks.length === 0 && tasks.length > 0) detectRisks(); }} className="relative bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          <span className="font-medium">{highRisks.length > 0 ? `${highRisks.length} 个高风险` : `${risks.length} 个风险`}</span>
+          <span className="font-medium">{risks.length === 0 ? '风险分析' : highRisks.length > 0 ? `${highRisks.length} 个高风险` : `${risks.length} 个风险`}</span>
           {highRisks.length > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping" />}
         </button>
       ) : (
