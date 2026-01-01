@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, TeamMember, Team } from '../types';
 import { NotificationBell } from './NotificationBell';
-import { Button, IconButton, Avatar } from './ui';
+import { Button, IconButton, Avatar, Input, Select } from './ui';
 
 interface HeaderProps {
   user: User;
@@ -48,33 +48,34 @@ export const Header: React.FC<HeaderProps> = memo(({
         {/* Actions */}
         <div className="flex items-center gap-3 sm:gap-4">
           {/* Search */}
-          <div className="relative hidden lg:block group">
-            <input 
+          <div className="hidden lg:block w-48 xl:w-64">
+            <Input 
               type="text" 
               placeholder="搜索任务..." 
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)} 
-              className="w-48 xl:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#001C3D]/20 focus:border-[#001C3D] bg-slate-50/50 hover:bg-white transition-all placeholder:text-slate-400" 
+              size="sm"
+              leftIcon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
             />
-            <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 group-focus-within:text-[#001C3D] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
 
           {/* Filters */}
-          <div className="relative">
-            <select value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)} className="appearance-none bg-slate-50/50 hover:bg-white border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-[#001C3D]/20 focus:border-[#001C3D] pl-3 pr-9 py-2 cursor-pointer min-w-[110px] transition-all">
-              <option value="ALL">所有成员</option>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          <div className="w-[120px]">
+            <Select 
+              value={filterAssignee} 
+              onChange={(e) => setFilterAssignee(e.target.value)} 
+              size="sm"
+              options={[{ value: 'ALL', label: '所有成员' }, ...members.map((m) => ({ value: m.id, label: m.name }))]}
+            />
           </div>
 
-          <div className="relative hidden sm:block">
-            <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="appearance-none bg-slate-50/50 hover:bg-white border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-[#001C3D]/20 focus:border-[#001C3D] pl-3 pr-9 py-2 cursor-pointer min-w-[110px] transition-all">
-              <option value="DEFAULT">默认排序</option>
-              <option value="PRIORITY_DESC">优先级 ↓</option>
-              <option value="DATE_DESC">时间 ↓</option>
-            </select>
-            <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          <div className="hidden sm:block w-[120px]">
+            <Select 
+              value={sortOption} 
+              onChange={(e) => setSortOption(e.target.value)} 
+              size="sm"
+              options={[{ value: 'DEFAULT', label: '默认排序' }, { value: 'PRIORITY_DESC', label: '优先级 ↓' }, { value: 'DATE_DESC', label: '时间 ↓' }]}
+            />
           </div>
 
           {/* New Task Button */}

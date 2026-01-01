@@ -111,9 +111,8 @@ export const ProfilePage: React.FC = () => {
               <div><div className="font-semibold text-lg text-slate-900">{user?.name}</div><div className="text-sm text-slate-400">{user?.email}</div></div>
             </div>
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">姓名</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full max-w-xs px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="max-w-xs">
+                <Input label="姓名" type="text" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">选择头像</label>
@@ -153,8 +152,8 @@ export const ProfilePage: React.FC = () => {
                   {skills.length === 0 && <span className="text-sm text-gray-400">暂无技能标签，添加后可帮助 AI 更精准推荐任务</span>}
                 </div>
                 <div className="flex gap-2">
-                  <input type="text" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())} placeholder="输入技能（如：React、Python、UI设计）" className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2" />
-                  <button onClick={addSkill} disabled={!newSkill.trim()} className="px-4 py-2 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 transition-colors disabled:opacity-50">添加</button>
+                  <Input type="text" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())} placeholder="输入技能（如：React、Python、UI设计）" />
+                  <Button onClick={addSkill} disabled={!newSkill.trim()} variant="secondary">添加</Button>
                 </div>
               </div>
               <Button onClick={handleSaveProfile} isLoading={saving}>{saving ? '保存中...' : '保存修改'}</Button>

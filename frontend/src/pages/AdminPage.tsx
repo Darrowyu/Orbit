@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../stores/adminStore';
 import { useAuthStore } from '../stores/authStore';
 import { useDialog } from '../components/ConfirmDialog';
-import { Card, Button, Input, Badge, Avatar, IconButton } from '../components/ui';
+import { Card, Button, Input, Badge, Avatar, IconButton, Modal, ModalFooter } from '../components/ui';
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -199,31 +199,16 @@ export const AdminPage: React.FC = () => {
         )}
       </div>
 
-      {pwdModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setPwdModal(null)}>
-          <div className="bg-white rounded-2xl w-96 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">重置密码</h3>
-              <p className="text-sm text-gray-500 mt-1">为用户 <span className="font-medium text-indigo-600">{pwdModal.name}</span> 设置新密码</p>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">新密码</label>
-                <input type="password" value={newPwd} onChange={(e) => { setNewPwd(e.target.value); setPwdError(''); }} placeholder="请输入新密码（至少6位）" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">确认密码</label>
-                <input type="password" value={confirmPwd} onChange={(e) => { setConfirmPwd(e.target.value); setPwdError(''); }} placeholder="请再次输入新密码" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-              </div>
-              {pwdError && <p className="text-sm text-red-500 flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{pwdError}</p>}
-            </div>
-            <div className="p-5 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={() => setPwdModal(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">取消</button>
-              <button onClick={handleResetPassword} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">确认重置</button>
-            </div>
-          </div>
+      <Modal isOpen={!!pwdModal} onClose={() => setPwdModal(null)} title="重置密码" description={`为用户 ${pwdModal?.name} 设置新密码`} size="sm">
+        <div className="space-y-4">
+          <Input type="password" label="新密码" value={newPwd} onChange={(e) => { setNewPwd(e.target.value); setPwdError(''); }} placeholder="请输入新密码（至少6位）" />
+          <Input type="password" label="确认密码" value={confirmPwd} onChange={(e) => { setConfirmPwd(e.target.value); setPwdError(''); }} placeholder="请再次输入新密码" error={!!pwdError} errorText={pwdError} />
         </div>
-      )}
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setPwdModal(null)}>取消</Button>
+          <Button onClick={handleResetPassword}>确认重置</Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 };

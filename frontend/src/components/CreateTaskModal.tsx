@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, Priority, Subtask, User } from '../types';
 import { aiApi } from '../services/api';
-import { Button, Input, Modal, Badge } from './ui';
+import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
 import { useAuthStore } from '../stores/authStore';
 
@@ -80,16 +80,16 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">任务标题</label>
             <div className="flex gap-2">
-              <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 transition-all" placeholder="例如：重构登录页面" />
+              <Input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例如：重构登录页面" />
               {!initialData && <Button type="button" variant="secondary" onClick={handleAiAssist} disabled={!title.trim() || isAiLoading} isLoading={isAiLoading} className="whitespace-nowrap" title="AI 自动生成"><span className="flex items-center text-[#001C3D]"><svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none"><path d="M12 2L14.35 9.65L22 12L14.35 14.35L12 22L9.65 14.35L2 12L9.65 9.65L12 2Z" fill="currentColor" /></svg>AI 填充</span></Button>}
             </div>
           </div>
           <div><label className="block text-sm font-medium text-slate-700 mb-1">描述</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 transition-all" placeholder="任务详细说明..." /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-slate-700 mb-1">优先级</label><select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 bg-white transition-all"><option value={Priority.LOW}>低</option><option value={Priority.MEDIUM}>中</option><option value={Priority.HIGH}>高</option></select></div>
-            <div><label className="block text-sm font-medium text-slate-700 mb-1">负责人</label><select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 bg-white transition-all">{teamMembers.map((m) => <option key={m.id} value={m.id}>{m.avatar} {m.name}</option>)}</select></div>
+            <Select label="优先级" value={priority} onChange={(e) => setPriority(e.target.value as Priority)} options={[{ value: Priority.LOW, label: '低' }, { value: Priority.MEDIUM, label: '中' }, { value: Priority.HIGH, label: '高' }]} />
+            <Select label="负责人" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} options={teamMembers.map((m) => ({ value: m.id, label: `${m.avatar} ${m.name}` }))} />
           </div>
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">截止日期</label><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 transition-all" /></div>
+          <Input type="date" label="截止日期" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">前置任务（依赖）</label>
             <div className="space-y-2">
