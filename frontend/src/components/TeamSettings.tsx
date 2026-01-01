@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Modal, Badge, Avatar, Card } from './ui';
+import { Button, Modal, Badge, Avatar, Card, Select, IconButton } from './ui';
 import { useTeamStore } from '../stores/teamStore';
 import { useAuthStore } from '../stores/authStore';
 import { TeamRole } from '../types';
@@ -58,12 +58,7 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
     <Modal isOpen={isOpen} onClose={onClose} title="团队设置" size="lg">
       <div className="p-6 overflow-y-auto flex-1 space-y-6">
         {teams.length > 1 && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">切换团队</label>
-            <select value={currentTeam.id} onChange={(e) => switchTeam(e.target.value)} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 bg-white transition-all">
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+          <Select label="切换团队" value={currentTeam.id} onChange={(e) => switchTeam(e.target.value)} options={teams.map(t => ({ value: t.id, label: t.name }))} />
         )}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">邀请码</label>
@@ -95,12 +90,11 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="flex items-center gap-2">
                   <Badge variant={roleVariants[m.role]} size="sm">{roleLabels[m.role]}</Badge>
                   {canManage && m.role !== 'owner' && m.user.id !== user?.id && (
-                    <div className="flex gap-1">
-                      <select value={m.role} onChange={(e) => handleRoleChange(m.id, e.target.value)} className="text-xs border border-slate-200 rounded-lg p-1 focus:border-[#001C3D] focus:ring-[#001C3D]/20">
-                        <option value="admin">管理员</option>
-                        <option value="member">成员</option>
-                      </select>
-                      {isOwner && <button onClick={() => handleRemove(m.id, m.user.name)} className="text-red-500 hover:text-red-700 p-1 transition-colors" title="移除"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>}
+                    <div className="flex items-center gap-1">
+                      <div className="w-24">
+                        <Select value={m.role} onChange={(e) => handleRoleChange(m.id, e.target.value)} size="sm" options={[{ value: 'admin', label: '管理员' }, { value: 'member', label: '成员' }]} />
+                      </div>
+                      {isOwner && <IconButton variant="ghost" onClick={() => handleRemove(m.id, m.user.name)} title="移除" className="text-red-500 hover:text-red-700 hover:bg-red-50"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></IconButton>}
                     </div>
                   )}
                 </div>
