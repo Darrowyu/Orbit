@@ -25,22 +25,27 @@
 
 /* ========== 设计令牌系统 v2.0 ========== */
 :root {
-  /* === 品牌色系 - Orbit Navy === */
-  --color-brand-50: 248 250 252;
-  --color-brand-100: 241 247 253;
-  --color-brand-200: 219 234 249;
-  --color-brand-300: 178 207 235;
-  --color-brand-400: 107 156 204;
-  --color-brand-500: 15 76 129;   /* Classic Blue */
-  --color-brand-600: 0 28 61;     /* Orbit Navy - 主色 */
-  --color-brand-700: 0 22 51;
-  --color-brand-800: 0 18 41;
-  --color-brand-900: 0 12 26;
+  /* === 品牌色系 - Minimal Ink === */
+  --color-brand-50: 250 250 250;
+  --color-brand-100: 245 245 245;
+  --color-brand-200: 229 229 229;
+  --color-brand-300: 212 212 212;
+  --color-brand-400: 163 163 163;
+  --color-brand-500: 115 115 115;
+  --color-brand-600: 23 23 23;    /* Ink - 主色 */
+  --color-brand-700: 18 18 18;
+  --color-brand-800: 13 13 13;
+  --color-brand-900: 9 9 9;
 
   /* === 语义化颜色 === */
-  --color-primary: 0 28 61;
-  --color-primary-hover: 0 22 51;
-  --color-primary-active: 0 18 41;
+  --color-primary: 23 23 23;
+  --color-primary-hover: 38 38 38;
+  --color-primary-active: 13 13 13;
+  
+  /* === 极简风格强调色 === */
+  --color-accent: 99 102 241;     /* Indigo-500 作为点缀 */
+  --color-accent-hover: 79 70 229;
+  --color-accent-light: 238 242 255;
   
   --color-success-50: 240 253 244;
   --color-success-100: 220 252 231;
@@ -112,29 +117,34 @@
   --radius-3xl: 1.5rem;   /* 24px */
   --radius-full: 9999px;
 
-  /* === 阴影系统 === */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
-  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.04);
+  /* === 阴影系统 - 极简柔和 === */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.02);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 4px 8px -2px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 8px 16px -4px rgb(0 0 0 / 0.06);
+  --shadow-2xl: 0 16px 32px -8px rgb(0 0 0 / 0.08);
+  --shadow-inner: inset 0 1px 2px 0 rgb(0 0 0 / 0.02);
   
-  /* 品牌阴影 */
-  --shadow-brand-sm: 0 2px 8px -2px rgb(0 28 61 / 0.12);
-  --shadow-brand: 0 4px 14px -3px rgb(0 28 61 / 0.15);
-  --shadow-brand-lg: 0 10px 25px -5px rgb(0 28 61 / 0.18);
-  --shadow-brand-xl: 0 20px 40px -10px rgb(0 28 61 / 0.22);
+  /* 极简边框阴影 */
+  --shadow-border: 0 0 0 1px rgb(0 0 0 / 0.04);
+  --shadow-border-hover: 0 0 0 1px rgb(0 0 0 / 0.08);
+  
+  /* 品牌阴影 - 柔和 */
+  --shadow-brand-sm: 0 1px 3px -1px rgb(0 0 0 / 0.06);
+  --shadow-brand: 0 2px 6px -2px rgb(0 0 0 / 0.08);
+  --shadow-brand-lg: 0 4px 12px -3px rgb(0 0 0 / 0.10);
+  --shadow-brand-xl: 0 8px 24px -6px rgb(0 0 0 / 0.12);
   
   /* 彩色阴影 */
   --shadow-success: 0 4px 14px -3px rgb(34 197 94 / 0.25);
   --shadow-warning: 0 4px 14px -3px rgb(245 158 11 / 0.25);
   --shadow-danger: 0 4px 14px -3px rgb(239 68 68 / 0.25);
 
-  /* === 字体系统 === */
-  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  /* === 字体系统 - 极简精致 === */
+  --font-sans: 'SF Pro Display', 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --font-display: 'SF Pro Display', 'Inter', system-ui, sans-serif;
   
   --text-xs: 0.75rem;     /* 12px */
   --text-sm: 0.875rem;    /* 14px */
@@ -435,14 +445,33 @@ body {
 }
 
 .gradient-primary {
-  background: linear-gradient(135deg, rgb(var(--color-primary)), #0F4C81);
+  background: rgb(var(--color-primary));
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, rgb(var(--color-primary)), #0F4C81);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: rgb(var(--color-primary));
+  -webkit-text-fill-color: currentColor;
+}
+
+/* 极简风格工具类 */
+.minimal-card {
+  background: white;
+  border: 1px solid rgb(0 0 0 / 0.06);
+  border-radius: var(--radius-xl);
+  transition: border-color var(--duration-200) var(--ease-out);
+}
+
+.minimal-card:hover {
+  border-color: rgb(0 0 0 / 0.12);
+}
+
+.minimal-divider {
+  height: 1px;
+  background: rgb(0 0 0 / 0.06);
+}
+
+.text-muted {
+  color: rgb(115 115 115);
 }
 
 /* 悬浮卡片效果 */

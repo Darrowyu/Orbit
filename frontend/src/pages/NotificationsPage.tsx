@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useAuthStore } from '../stores/authStore';
 import { Notification } from '../types';
-import { IconButton, Button } from '../components/ui';
+import { Button } from '../components/ui';
 
 const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -19,21 +19,12 @@ const formatTime = (dateStr: string) => {
     return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 };
 
-const getIcon = (type: string) => {
+const getTypeStyle = (type: string) => {
     switch (type) {
-        case 'task_assigned': return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
-        case 'task_status': return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>;
-        case 'team_joined': return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
-        default: return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>;
-    }
-};
-
-const getColor = (type: string) => {
-    switch (type) {
-        case 'task_assigned': return 'bg-blue-100 text-blue-600';
-        case 'task_status': return 'bg-green-100 text-green-600';
-        case 'team_joined': return 'bg-purple-100 text-purple-600';
-        default: return 'bg-gray-100 text-gray-600';
+        case 'task_assigned': return 'bg-blue-50 text-blue-600';
+        case 'task_status': return 'bg-emerald-50 text-emerald-600';
+        case 'team_joined': return 'bg-purple-50 text-purple-600';
+        default: return 'bg-neutral-50 text-neutral-500';
     }
 };
 
@@ -53,55 +44,62 @@ export const NotificationsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-[var(--shadow-sm)]">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="min-h-screen bg-neutral-50/50">
+            {/* 极简头部 */}
+            <header className="bg-white border-b border-neutral-100 sticky top-0 z-30">
+                <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <IconButton onClick={() => navigate('/')} variant="ghost" className="text-slate-500 hover:text-[#001C3D]">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                        </IconButton>
+                        <button onClick={() => navigate('/')} className="p-1.5 -ml-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </button>
+                        <div className="h-5 w-px bg-neutral-200" />
                         <div>
-                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#001C3D] to-[#0F4C81]">通知中心</h1>
-                            <p className="text-sm text-slate-500">{unreadCount > 0 ? `${unreadCount} 条未读` : '暂无未读通知'}</p>
+                            <h1 className="text-base font-semibold text-neutral-900">通知</h1>
                         </div>
                     </div>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="sm" onClick={markAllAsRead}>全部已读</Button>
+                        <button onClick={markAllAsRead} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">全部已读</button>
                     )}
                 </div>
             </header>
 
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <main className="max-w-3xl mx-auto px-6 py-6">
                 {/* 筛选 */}
-                <div className="flex gap-2 mb-6">
-                    <Button variant={filter === 'all' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('all')}>全部</Button>
-                    <Button variant={filter === 'unread' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('unread')}>未读 {unreadCount > 0 && `(${unreadCount})`}</Button>
+                <div className="flex gap-1 mb-6 border-b border-neutral-100">
+                    <button onClick={() => setFilter('all')} className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${filter === 'all' ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'}`}>
+                        全部
+                        {filter === 'all' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />}
+                    </button>
+                    <button onClick={() => setFilter('unread')} className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${filter === 'unread' ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'}`}>
+                        未读 {unreadCount > 0 && <span className="ml-1 text-xs">({unreadCount})</span>}
+                        {filter === 'unread' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />}
+                    </button>
                 </div>
 
                 {/* 通知列表 */}
                 {filteredNotifications.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center animate-fade-in">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    <div className="minimal-card p-12 text-center animate-fade-in">
+                        <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-1">{filter === 'unread' ? '没有未读通知' : '暂无通知'}</h3>
-                        <p className="text-gray-500">有新动态时会在这里提醒你</p>
+                        <h3 className="font-medium text-neutral-900 mb-1">{filter === 'unread' ? '没有未读通知' : '暂无通知'}</h3>
+                        <p className="text-sm text-neutral-400">有新动态时会提醒你</p>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                    <div className="minimal-card overflow-hidden divide-y divide-neutral-50">
                         {filteredNotifications.map((notification, index) => (
-                            <div key={notification.id} onClick={() => handleClick(notification)} className={`flex items-start gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors animate-fade-in-up ${!notification.read ? 'bg-indigo-50/30' : ''}`} style={{ animationDelay: `${index * 30}ms` }}>
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getColor(notification.type)}`}>
-                                    {getIcon(notification.type)}
+                            <div key={notification.id} onClick={() => handleClick(notification)} className={`flex items-start gap-4 p-4 hover:bg-neutral-50/50 cursor-pointer transition-colors animate-fade-in-up ${!notification.read ? 'bg-indigo-50/20' : ''}`} style={{ animationDelay: `${index * 20}ms` }}>
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${getTypeStyle(notification.type)}`}>
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
-                                        <h4 className={`text-sm font-medium ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>{notification.title}</h4>
-                                        <span className="text-xs text-gray-400 shrink-0">{formatTime(notification.createdAt)}</span>
+                                        <h4 className={`text-sm ${!notification.read ? 'font-medium text-neutral-900' : 'text-neutral-700'}`}>{notification.title}</h4>
+                                        <span className="text-xs text-neutral-400 shrink-0">{formatTime(notification.createdAt)}</span>
                                     </div>
-                                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{notification.message}</p>
+                                    <p className="text-sm text-neutral-500 mt-0.5 line-clamp-2">{notification.message}</p>
                                 </div>
-                                {!notification.read && <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-2" />}
+                                {!notification.read && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2" />}
                             </div>
                         ))}
                     </div>
