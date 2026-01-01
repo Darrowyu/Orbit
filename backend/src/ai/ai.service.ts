@@ -3,16 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
 import { PrismaService } from '../prisma/prisma.service';
+import { CryptoUtil } from '../common/crypto.util';
+import { AIResponse, UserAiConfig, WorkloadEstimate, TeamMemberInfo, TaskInfo, AssigneeRecommendation, RiskDetection } from './ai.types';
 
-export interface AIResponse { description: string; subtasks: string[]; priority: string; }
-
-// 用户AI配置接口
-export interface UserAiConfig {
-  aiProvider: string | null;
-  aiApiKey: string | null;
-  aiBaseUrl: string | null;
-  aiModelName: string | null;
-}
+export { AIResponse, UserAiConfig };
 
 @Injectable()
 export class AiService {
@@ -40,16 +34,14 @@ export class AiService {
     this.logger.log('AI Service Initialized.');
   }
 
-  // 获取用户的AI配置（如果有）
+  // 获取用户的AI配置（如果有）- 自动解密 API Key
   async getUserAiConfig(userId: string): Promise<UserAiConfig | null> {
     if (!userId) return null;
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.aiApiKey) return null;
     return {
       aiProvider: user.aiProvider,
-      aiApiKey: user.aiApiKey,
+      aiApiKey: CryptoUtil.decrypt(user.aiApiKey), // 解密
       aiBaseUrl: user.aiBaseUrl,
       aiModelName: user.aiModelName,
     };
@@ -90,7 +82,7 @@ export class AiService {
     );
   }
 
-  async estimateWorkload(taskTitle: string, description: string, subtasks: string[], userId?: string): Promise<{ hours: number; confidence: string; factors: string[] }> {
+  async estimateWorkload(taskTitle: string, description: string, subtasks: string[], userId?: string): Promise<WorkloadEstimate> {
     const userConfig = userId ? await this.getUserAiConfig(userId) : null;
 
     const prompt = `你是项目管理专家。请评估以下任务的工作量：\n任务：${taskTitle}\n描述：${description}\n子任务：${subtasks.join('、')}\n\n返回JSON：{"hours":数字,"confidence":"high/medium/low","factors":["因素1","因素2"]}`;
@@ -102,7 +94,7 @@ export class AiService {
     );
   }
 
-  async recommendAssignee(taskTitle: string, description: string, teamMembers: any[], taskHistory: any[], userId?: string): Promise<any> {
+  async recommendAssignee(taskTitle: string, description: string, teamMembers: TeamMemberInfo[], taskHistory: TaskInfo[], userId?: string): Promise<AssigneeRecommendation> {
     if (!teamMembers.length) return { recommendedId: '', reason: '无成员', alternatives: [] };
     const userConfig = userId ? await this.getUserAiConfig(userId) : null;
 
@@ -117,7 +109,7 @@ export class AiService {
     );
   }
 
-  async detectRisks(tasks: any[], userId?: string): Promise<any[]> {
+  async detectRisks(tasks: TaskInfo[], userId?: string): Promise<RiskDetection[]> {
     if (!tasks.length) return [];
     const userConfig = userId ? await this.getUserAiConfig(userId) : null;
 

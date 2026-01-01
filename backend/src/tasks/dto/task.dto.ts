@@ -29,3 +29,18 @@ export class UpdateTaskDto {
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() dependsOn?: string[];
 }
+
+// WebSocket 传输用类型
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  assigneeId?: string;
+  teamId: string;
+  subtasks: SubtaskDto[];
+  dueDate?: string;
+  dependsOn: string[];
+  createdAt: string;
+}

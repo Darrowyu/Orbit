@@ -59,8 +59,54 @@ export class TasksController {
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req) {
-    await this.verifyTaskAccess(id, req.user.sub); // 权限验证
+    await this.verifyTaskAccess(id, req.user.sub);
     return this.tasks.remove(id);
+  }
+
+  // 批量操作
+  @Post('batch/move')
+  async batchMove(@Body() body: { ids: string[]; status: string }, @Request() req) {
+    const results = await Promise.all(body.ids.map(async (id) => {
+      try {
+        await this.verifyTaskAccess(id, req.user.sub);
+        return this.tasks.update(id, { status: body.status }, req.user.sub);
+      } catch { return null; }
+    }));
+    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
+  }
+
+  @Post('batch/delete')
+  async batchDelete(@Body() body: { ids: string[] }, @Request() req) {
+    const results = await Promise.all(body.ids.map(async (id) => {
+      try {
+        await this.verifyTaskAccess(id, req.user.sub);
+        await this.tasks.remove(id);
+        return true;
+      } catch { return false; }
+    }));
+    return { success: results.filter(r => r).length, failed: results.filter(r => !r).length };
+  }
+
+  @Post('batch/archive')
+  async batchArchive(@Body() body: { ids: string[] }, @Request() req) {
+    const results = await Promise.all(body.ids.map(async (id) => {
+      try {
+        await this.verifyTaskAccess(id, req.user.sub);
+        return this.tasks.archive(id);
+      } catch { return null; }
+    }));
+    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
+  }
+
+  @Post('batch/assign')
+  async batchAssign(@Body() body: { ids: string[]; assigneeId: string }, @Request() req) {
+    const results = await Promise.all(body.ids.map(async (id) => {
+      try {
+        await this.verifyTaskAccess(id, req.user.sub);
+        return this.tasks.update(id, { assigneeId: body.assigneeId }, req.user.sub);
+      } catch { return null; }
+    }));
+    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
   }
 }
 

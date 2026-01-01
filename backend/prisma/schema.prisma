@@ -16,11 +16,10 @@ model User {
   color        String         @default("bg-blue-100 text-blue-700")
   skills       String[]       @default([])
   aiPrompt     String?
-  // 用户自定义AI模型配置
-  aiProvider   String?        // gemini | openai | deepseek | moonshot | zhipu | custom
-  aiApiKey     String?        // 用户的API Key (加密存储)
-  aiBaseUrl    String?        // 自定义Base URL (OpenAI兼容格式)
-  aiModelName  String?        // 自定义模型名称
+  aiProvider   String?
+  aiApiKey     String?
+  aiBaseUrl    String?
+  aiModelName  String?
   isFirstLogin Boolean        @default(true)
   isSuperAdmin Boolean        @default(false)
   isActive     Boolean        @default(true)
@@ -33,6 +32,8 @@ model User {
   ownedTeams   Team[]         @relation("TeamOwner")
   loginLogs    LoginLog[]
   notifications Notification[]
+  comments     Comment[]
+  auditLogs    AuditLog[]
 }
 
 model LoginLog {
@@ -80,6 +81,7 @@ model Task {
   teamId      String
   team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]
+  comments    Comment[]
   dueDate     DateTime?
   dependsOn   String[]  @default([])
   isArchived  Boolean   @default(false)
@@ -110,4 +112,31 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   @@index([userId, read])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([taskId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String   // CREATE, UPDATE, DELETE, ARCHIVE, RESTORE, MOVE, ASSIGN
+  entityType String   // TASK, SUBTASK, TEAM, USER
+  entityId   String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId     String?
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+  @@index([teamId, createdAt])
+  @@index([entityType, entityId])
 }

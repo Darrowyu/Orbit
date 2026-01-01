@@ -58,12 +58,17 @@ export class TasksService {
     if (subtasks) {
       const existingIds = oldTask.subtasks.map(s => s.id);
       const newIds = subtasks.map(s => s.id);
-      const toDelete = existingIds.filter(id => !newIds.includes(id)); // 需要删除的
-      const toCreate = subtasks.filter(s => !existingIds.includes(s.id)); // 需要新建的
-      const toUpdate = subtasks.filter(s => existingIds.includes(s.id)); // 需要更新的
-      if (toDelete.length) await this.prisma.subtask.deleteMany({ where: { id: { in: toDelete } } });
-      if (toCreate.length) await this.prisma.subtask.createMany({ data: toCreate.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId, taskId: id })) });
-      for (const s of toUpdate) await this.prisma.subtask.update({ where: { id: s.id }, data: { title: s.title, completed: s.completed || false, assigneeId: s.assigneeId } });
+      const toDelete = existingIds.filter(existId => !newIds.includes(existId));
+      const toCreate = subtasks.filter(s => !existingIds.includes(s.id));
+      const toUpdate = subtasks.filter(s => existingIds.includes(s.id));
+      // 使用事务批量操作，消除 N+1 问题
+      await this.prisma.$transaction(async (tx) => {
+        if (toDelete.length) await tx.subtask.deleteMany({ where: { id: { in: toDelete } } });
+        if (toCreate.length) await tx.subtask.createMany({ data: toCreate.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId, taskId: id })) });
+        if (toUpdate.length) {
+          await Promise.all(toUpdate.map(s => tx.subtask.update({ where: { id: s.id }, data: { title: s.title, completed: s.completed || false, assigneeId: s.assigneeId } })));
+        }
+      });
     }
     const task = await this.prisma.task.update({
       where: { id },
