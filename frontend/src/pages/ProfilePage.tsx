@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { userApi } from '../services/api';
 import { useDialog } from '../components/ConfirmDialog';
 import { AiConfigPanel } from '../components/AiConfigPanel';
+import { Card, Button, Input, Avatar, Badge, IconButton } from '../components/ui';
 
 const AVATARS = ['😊', '😎', '🤓', '🧐', '🤖', '👻', '🐱', '🐶', '🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🌟', '⭐', '🎯', '🎨', '🎮', '🎵', '💎', '🔮', '🌈', '☀️'];
 const COLORS = [
@@ -83,33 +84,31 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-[var(--shadow-sm)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+            <IconButton onClick={() => navigate('/')} variant="ghost" className="text-slate-500 hover:text-[#001C3D]">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-            </button>
-            <h1 className="text-xl font-bold text-gray-800">个人设置</h1>
+            </IconButton>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#001C3D] to-[#0F4C81]">个人设置</h1>
           </div>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
-        <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+        <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
           {(['profile', 'teams', 'password', 'ai'] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${tab === t ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${tab === t ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
               {t === 'profile' ? '个人资料' : t === 'teams' ? '我的团队' : t === 'password' ? '修改密码' : 'AI 设置'}
             </button>
           ))}
         </div>
 
         {tab === 'profile' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <Card variant="default" padding="md">
             <div className="flex items-center gap-6 mb-8">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl overflow-hidden ${avatar?.startsWith('/uploads') ? 'bg-gray-100' : color}`}>
-                {avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${avatar}`} alt="avatar" className="w-full h-full object-cover" /> : avatar}
-              </div>
-              <div><div className="font-semibold text-lg text-gray-900">{user?.name}</div><div className="text-sm text-gray-400">{user?.email}</div></div>
+              <Avatar src={avatar} fallback={avatar} size="xl" color={color} className="text-3xl" />
+              <div><div className="font-semibold text-lg text-slate-900">{user?.name}</div><div className="text-sm text-slate-400">{user?.email}</div></div>
             </div>
             <div className="space-y-6">
               <div>
@@ -158,60 +157,50 @@ export const ProfilePage: React.FC = () => {
                   <button onClick={addSkill} disabled={!newSkill.trim()} className="px-4 py-2 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 transition-colors disabled:opacity-50">添加</button>
                 </div>
               </div>
-              <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">{saving ? '保存中...' : '保存修改'}</button>
+              <Button onClick={handleSaveProfile} isLoading={saving}>{saving ? '保存中...' : '保存修改'}</Button>
             </div>
-          </div>
+          </Card>
         )}
 
         {tab === 'teams' && (
           <div className="space-y-4">
-            {teams.length === 0 ? <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">暂未加入任何团队</div> : teams.map((team) => (
-              <div key={team.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            {teams.length === 0 ? <Card variant="default" padding="lg" className="text-center text-slate-400">暂未加入任何团队</Card> : teams.map((team) => (
+              <Card key={team.id} variant="default" padding="md" hoverable>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{team.name}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded mt-1 inline-block ${team.role === 'owner' ? 'bg-amber-100 text-amber-700' : team.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{team.role === 'owner' ? '创建者' : team.role === 'admin' ? '管理员' : '成员'}</span>
+                    <h3 className="font-semibold text-slate-900">{team.name}</h3>
+                    <Badge variant={team.role === 'owner' ? 'warning' : team.role === 'admin' ? 'primary' : 'default'} size="sm" className="mt-1">{team.role === 'owner' ? '创建者' : team.role === 'admin' ? '管理员' : '成员'}</Badge>
                   </div>
-                  <span className="text-sm text-gray-400">{team.memberCount} 位成员</span>
+                  <Badge variant="default" size="md">{team.memberCount} 位成员</Badge>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {team.members.slice(0, 10).map((m) => (
-                    <div key={m.user.id} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${m.user.color}`} title={m.user.name}>{m.user.avatar}</div>
+                    <Avatar key={m.user.id} src={m.user.avatar} fallback={m.user.avatar} size="sm" color={m.user.color} alt={m.user.name} />
                   ))}
-                  {team.memberCount > 10 && <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-500">+{team.memberCount - 10}</div>}
+                  {team.memberCount > 10 && <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 font-medium">+{team.memberCount - 10}</div>}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
 
         {tab === 'password' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-md">
+          <Card variant="default" padding="md" className="max-w-md">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">原密码</label>
-                <input type="password" value={oldPwd} onChange={(e) => { setOldPwd(e.target.value); setPwdError(''); }} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">新密码</label>
-                <input type="password" value={newPwd} onChange={(e) => { setNewPwd(e.target.value); setPwdError(''); }} placeholder="至少6位" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">确认新密码</label>
-                <input type="password" value={confirmPwd} onChange={(e) => { setConfirmPwd(e.target.value); setPwdError(''); }} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              {pwdError && <p className="text-sm text-red-500">{pwdError}</p>}
-              <button onClick={handleChangePassword} className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">修改密码</button>
+              <Input type="password" label="原密码" value={oldPwd} onChange={(e) => { setOldPwd(e.target.value); setPwdError(''); }} />
+              <Input type="password" label="新密码" value={newPwd} onChange={(e) => { setNewPwd(e.target.value); setPwdError(''); }} placeholder="至少6位" />
+              <Input type="password" label="确认新密码" value={confirmPwd} onChange={(e) => { setConfirmPwd(e.target.value); setPwdError(''); }} error={!!pwdError} errorText={pwdError} />
+              <Button onClick={handleChangePassword}>修改密码</Button>
             </div>
-          </div>
+          </Card>
         )}
 
         {tab === 'ai' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">自定义 AI 模型</h3>
-            <p className="text-sm text-gray-500 mb-6">配置您自己的 AI API Key，使用您偏好的模型进行任务智能生成。未配置时将使用系统默认模型。</p>
+          <Card variant="default" padding="md">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">自定义 AI 模型</h3>
+            <p className="text-sm text-slate-500 mb-6">配置您自己的 AI API Key，使用您偏好的模型进行任务智能生成。未配置时将使用系统默认模型。</p>
             <AiConfigPanel />
-          </div>
+          </Card>
         )}
       </div>
     </div>

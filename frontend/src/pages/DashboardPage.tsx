@@ -4,16 +4,17 @@ import { useTaskStore } from '../stores/taskStore';
 import { useTeamStore } from '../stores/teamStore';
 import { useAuthStore } from '../stores/authStore';
 import { TaskStatus, Priority } from '../types';
+import { Card, Avatar, Badge, IconButton } from '../components/ui';
 
-const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: number | string; color: string; trend?: string }> = ({ icon, label, value, color, trend }) => (
-    <div className={`bg-white rounded-2xl p-6 border border-gray-100 shadow-sm card-hover animate-fade-in-up`}>
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: number | string; color: string; bgColor: string; trend?: string }> = ({ icon, label, value, color, bgColor, trend }) => (
+    <Card variant="default" padding="md" hoverable className="animate-fade-in-up group">
         <div className="flex items-center justify-between mb-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>{icon}</div>
-            {trend && <span className={`text-sm font-medium ${trend.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>{trend}</span>}
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bgColor} ${color} shadow-sm group-hover:scale-105 transition-transform`}>{icon}</div>
+            {trend && <Badge variant={trend.startsWith('+') ? 'success' : 'danger'} size="sm">{trend}</Badge>}
         </div>
-        <div className="text-3xl font-bold text-gray-900 mb-1">{value}</div>
-        <div className="text-sm text-gray-500">{label}</div>
-    </div>
+        <div className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">{value}</div>
+        <div className="text-sm text-slate-500 font-medium">{label}</div>
+    </Card>
 );
 
 const ProgressRing: React.FC<{ progress: number; size?: number; strokeWidth?: number }> = ({ progress, size = 120, strokeWidth = 8 }) => {
@@ -65,19 +66,21 @@ export const DashboardPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* 头部 */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+            <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-[var(--shadow-sm)]">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
+                        <IconButton onClick={() => navigate('/')} variant="ghost" className="text-slate-500 hover:text-[#001C3D]">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </IconButton>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900">仪表盘</h1>
-                            <p className="text-sm text-gray-500">{currentTeam?.name || '我的空间'}</p>
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#001C3D] to-[#0F4C81]">仪表盘</h1>
+                            <p className="text-sm text-slate-500">{currentTeam?.name || '我的空间'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-500">欢迎回来，</span>
-                        <span className="font-medium text-gray-900">{user?.name}</span>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user?.color}`}>{user?.avatar}</div>
+                        <span className="text-sm text-slate-500">欢迎回来，</span>
+                        <span className="font-medium text-slate-900">{user?.name}</span>
+                        <Avatar src={user?.avatar} fallback={user?.avatar} size="sm" color={user?.color} />
                     </div>
                 </div>
             </header>
@@ -85,16 +88,16 @@ export const DashboardPage: React.FC = () => {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* 统计卡片 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="全部任务" value={stats.total} color="bg-indigo-100 text-indigo-600" />
-                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="进行中" value={stats.inProgress} color="bg-blue-100 text-blue-600" />
-                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="已完成" value={stats.done} color="bg-green-100 text-green-600" />
-                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} label="已逾期" value={stats.overdue} color="bg-red-100 text-red-600" />
+                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="全部任务" value={stats.total} color="text-[#001C3D]" bgColor="bg-[#001C3D]/10" />
+                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="进行中" value={stats.inProgress} color="text-blue-600" bgColor="bg-blue-100" />
+                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="已完成" value={stats.done} color="text-emerald-600" bgColor="bg-emerald-100" />
+                    <StatCard icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} label="已逾期" value={stats.overdue} color="text-red-600" bgColor="bg-red-100" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* 完成率环形图 */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm animate-fade-in-up stagger-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-6">任务完成率</h3>
+                    <Card variant="default" padding="md" className="animate-fade-in-up stagger-1">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-6">任务完成率</h3>
                         <div className="flex items-center justify-center">
                             <div className="relative">
                                 <ProgressRing progress={stats.completionRate} size={160} strokeWidth={12} />
@@ -105,16 +108,16 @@ export const DashboardPage: React.FC = () => {
                             </div>
                         </div>
                         <div className="mt-6 grid grid-cols-2 gap-4">
-                            <div className="text-center"><div className="text-2xl font-bold text-gray-900">{stats.done}</div><div className="text-xs text-gray-500">已完成</div></div>
-                            <div className="text-center"><div className="text-2xl font-bold text-gray-900">{stats.total - stats.done}</div><div className="text-xs text-gray-500">待处理</div></div>
+                            <div className="text-center"><div className="text-2xl font-bold text-slate-900">{stats.done}</div><div className="text-xs text-slate-500">已完成</div></div>
+                            <div className="text-center"><div className="text-2xl font-bold text-slate-900">{stats.total - stats.done}</div><div className="text-xs text-slate-500">待处理</div></div>
                         </div>
-                    </div>
+                    </Card>
 
                     {/* 即将到期 */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm lg:col-span-2 animate-fade-in-up stagger-2">
+                    <Card variant="default" padding="md" className="lg:col-span-2 animate-fade-in-up stagger-2">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold text-gray-900">即将到期</h3>
-                            <button onClick={() => navigate('/')} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">查看全部</button>
+                            <h3 className="text-lg font-semibold text-slate-900">即将到期</h3>
+                            <button onClick={() => navigate('/')} className="text-sm text-[#001C3D] hover:text-[#0F4C81] font-medium transition-colors">查看全部 →</button>
                         </div>
                         {upcomingDeadlines.length === 0 ? (
                             <div className="text-center py-8 text-gray-400"><svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><p>暂无即将到期的任务</p></div>
@@ -138,32 +141,32 @@ export const DashboardPage: React.FC = () => {
                                 })}
                             </div>
                         )}
-                    </div>
+                    </Card>
                 </div>
 
                 {/* 团队成员 */}
-                <div className="mt-8 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm animate-fade-in-up stagger-3">
+                <Card variant="default" padding="md" className="mt-8 animate-fade-in-up stagger-3">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900">团队成员</h3>
-                        <span className="text-sm text-gray-500">{members.length} 位成员</span>
+                        <h3 className="text-lg font-semibold text-slate-900">团队成员</h3>
+                        <Badge variant="default" size="md">{members.length} 位成员</Badge>
                     </div>
                     <div className="flex flex-wrap gap-4">
                         {members.slice(0, 10).map((member) => {
                             const memberTasks = tasks.filter(t => t.assigneeId === member.id);
                             const completedTasks = memberTasks.filter(t => t.status === TaskStatus.DONE).length;
                             return (
-                                <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${member.color}`}>{member.avatar}</div>
+                                <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all hover:shadow-sm cursor-pointer group">
+                                    <Avatar src={member.avatar} fallback={member.avatar} size="md" color={member.color} className="group-hover:scale-105 transition-transform" />
                                     <div>
-                                        <div className="font-medium text-gray-900 text-sm">{member.name}</div>
-                                        <div className="text-xs text-gray-500">{completedTasks}/{memberTasks.length} 完成</div>
+                                        <div className="font-medium text-slate-900 text-sm">{member.name}</div>
+                                        <div className="text-xs text-slate-500">{completedTasks}/{memberTasks.length} 完成</div>
                                     </div>
                                 </div>
                             );
                         })}
-                        {members.length > 10 && <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-sm text-gray-500">+{members.length - 10}</div>}
+                        {members.length > 10 && <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 text-sm text-slate-600 font-medium">+{members.length - 10}</div>}
                     </div>
-                </div>
+                </Card>
             </main>
         </div>
     );

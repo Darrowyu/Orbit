@@ -2,12 +2,20 @@ import React, { memo, useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User } from '../types';
 import { TaskCard } from './TaskCard';
+import { Badge, IconButton } from './ui';
+
+const COLUMN_ICONS = {
+  [TaskStatus.TODO]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
+  [TaskStatus.IN_PROGRESS]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+  [TaskStatus.REVIEW]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
+  [TaskStatus.DONE]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+};
 
 const COLUMN_CONFIG = [
-  { id: TaskStatus.TODO, title: '待处理', color: 'bg-slate-50 border-slate-200' },
-  { id: TaskStatus.IN_PROGRESS, title: '进行中', color: 'bg-blue-50 border-blue-100' },
-  { id: TaskStatus.REVIEW, title: '审核中', color: 'bg-purple-50 border-purple-100' },
-  { id: TaskStatus.DONE, title: '已完成', color: 'bg-green-50 border-green-100' },
+  { id: TaskStatus.TODO, title: '待处理', color: 'bg-slate-50/70' },
+  { id: TaskStatus.IN_PROGRESS, title: '进行中', color: 'bg-blue-50/70' },
+  { id: TaskStatus.REVIEW, title: '审核中', color: 'bg-purple-50/70' },
+  { id: TaskStatus.DONE, title: '已完成', color: 'bg-emerald-50/70' },
 ];
 
 interface KanbanBoardProps {
@@ -142,18 +150,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
               <div key={col.id} className="w-80 flex-shrink-0 flex flex-col">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-gray-700">{col.title}</h2>
-                    <span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                    <span className="text-slate-500">{COLUMN_ICONS[col.id]}</span>
+                    <h2 className="font-bold text-slate-700">{col.title}</h2>
+                    <Badge variant="default" size="sm">{colTasks.length}</Badge>
                   </div>
                   {col.id === TaskStatus.DONE && (
-                    <button onClick={onShowArchived} className="text-xs text-gray-400 hover:text-indigo-600 flex items-center gap-1" title="查看归档">
+                    <button onClick={onShowArchived} className="text-xs text-slate-400 hover:text-[#001C3D] flex items-center gap-1 transition-colors" title="查看归档">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>归档
                     </button>
                   )}
                 </div>
                 <Droppable droppableId={col.id}>
                   {(provided, snapshot) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className={`flex-1 rounded-xl p-2 transition-colors duration-200 ${snapshot.isDraggingOver ? 'bg-indigo-50/50 ring-2 ring-indigo-100 ring-inset' : 'bg-gray-100/50'} ${col.color.split(' ')[0]} bg-opacity-30`} style={{ minHeight: '150px' }}>
+                    <div {...provided.droppableProps} ref={provided.innerRef} className={`flex-1 rounded-2xl p-3 transition-all duration-200 ${snapshot.isDraggingOver ? 'bg-[#001C3D]/5 ring-2 ring-[#001C3D]/20 ring-inset' : col.color}`} style={{ minHeight: '150px' }}>
                       <div className="flex flex-col gap-3">
                         {colTasks.map((task, idx) => (
                           <Draggable key={task.id} draggableId={task.id} index={idx} isDragDisabled={sortOption !== 'DEFAULT'}>
