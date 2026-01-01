@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { aiApi } from '../services/api';
 import { User } from '../types';
+import { Button } from './ui';
 
 interface Props {
   taskTitle: string;
@@ -50,12 +51,12 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
         AI 智能助手
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={handleEstimateWorkload} disabled={loading === 'workload' || !taskTitle} className="px-3 py-2 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg text-xs font-medium text-indigo-700 transition-colors disabled:opacity-50">
-          {loading === 'workload' ? '分析中...' : '📊 工作量预估'}
-        </button>
-        <button onClick={handleRecommendAssignee} disabled={loading === 'assignee' || !taskTitle} className="px-3 py-2 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg text-xs font-medium text-indigo-700 transition-colors disabled:opacity-50">
-          {loading === 'assignee' ? '推荐中...' : '👤 智能推荐负责人'}
-        </button>
+        <Button variant="secondary" size="xs" onClick={handleEstimateWorkload} disabled={!taskTitle} isLoading={loading === 'workload'}>
+          📊 工作量预估
+        </Button>
+        <Button variant="secondary" size="xs" onClick={handleRecommendAssignee} disabled={!taskTitle} isLoading={loading === 'assignee'}>
+          👤 智能推荐负责人
+        </Button>
       </div>
       {workload && (
         <div className="bg-white rounded-lg p-3 border border-indigo-100">
@@ -82,7 +83,7 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
                   <div className="text-xs text-gray-500">{recommendation.reason}</div>
                 </div>
               </div>
-              <button onClick={() => applyRecommendation(recommendation.recommendedId)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors">采纳</button>
+              <Button size="xs" onClick={() => applyRecommendation(recommendation.recommendedId)}>采纳</Button>
             </div>
             {recommendation.alternatives.map((alt, i) => (
               <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded">
@@ -93,7 +94,7 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
                     <div className="text-xs text-gray-400">{alt.reason}</div>
                   </div>
                 </div>
-                <button onClick={() => applyRecommendation(alt.id)} className="px-2 py-0.5 text-indigo-600 hover:bg-indigo-50 text-xs rounded transition-colors">选择</button>
+                <Button variant="ghost" size="xs" onClick={() => applyRecommendation(alt.id)}>选择</Button>
               </div>
             ))}
           </div>

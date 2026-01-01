@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Task, User } from '../types';
 import { TaskCard } from './TaskCard';
+import { IconButton } from './ui';
 
 interface ArchivedTasksModalProps {
   isOpen: boolean;
@@ -27,11 +28,11 @@ export const ArchivedTasksModal: React.FC<ArchivedTasksModalProps> = memo(({
             <h2 className="text-lg font-bold text-gray-900">已归档任务</h2>
             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{archivedTasks.length}</span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+          <IconButton variant="ghost" onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </IconButton>
         </div>
         <div className="p-4 overflow-y-auto flex-1">
           {archivedTasks.length === 0 ? (
