@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { Button } from './ui';
 
 interface DialogConfig {
   title: string;
@@ -51,8 +52,8 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              {!dialog.isAlert && <button onClick={() => handleClose(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">{dialog.cancelText || '取消'}</button>}
-              <button onClick={() => handleClose(true)} className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${typeStyles[dialog.type || 'info'].btnBg}`}>{dialog.confirmText || '确定'}</button>
+              {!dialog.isAlert && <Button variant="secondary" onClick={() => handleClose(false)}>{dialog.cancelText || '取消'}</Button>}
+              <Button variant={dialog.type === 'danger' ? 'danger' : dialog.type === 'warning' ? 'primary' : 'primary'} onClick={() => handleClose(true)}>{dialog.confirmText || '确定'}</Button>
             </div>
           </div>
         </div>

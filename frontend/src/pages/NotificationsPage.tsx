@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useAuthStore } from '../stores/authStore';
 import { Notification } from '../types';
+import { IconButton, Button } from '../components/ui';
 
 const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -53,17 +54,19 @@ export const NotificationsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+            <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-[var(--shadow-sm)]">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
+                        <IconButton onClick={() => navigate('/')} variant="ghost" className="text-slate-500 hover:text-[#001C3D]">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </IconButton>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900">通知中心</h1>
-                            <p className="text-sm text-gray-500">{unreadCount > 0 ? `${unreadCount} 条未读` : '暂无未读通知'}</p>
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#001C3D] to-[#0F4C81]">通知中心</h1>
+                            <p className="text-sm text-slate-500">{unreadCount > 0 ? `${unreadCount} 条未读` : '暂无未读通知'}</p>
                         </div>
                     </div>
                     {unreadCount > 0 && (
-                        <button onClick={markAllAsRead} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">全部已读</button>
+                        <Button variant="ghost" size="sm" onClick={markAllAsRead}>全部已读</Button>
                     )}
                 </div>
             </header>
@@ -71,8 +74,8 @@ export const NotificationsPage: React.FC = () => {
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 {/* 筛选 */}
                 <div className="flex gap-2 mb-6">
-                    <button onClick={() => setFilter('all')} className={`px-4 py-2 text-sm font-medium rounded-xl transition-all ${filter === 'all' ? 'bg-indigo-100 text-indigo-700' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>全部</button>
-                    <button onClick={() => setFilter('unread')} className={`px-4 py-2 text-sm font-medium rounded-xl transition-all ${filter === 'unread' ? 'bg-indigo-100 text-indigo-700' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>未读 {unreadCount > 0 && `(${unreadCount})`}</button>
+                    <Button variant={filter === 'all' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('all')}>全部</Button>
+                    <Button variant={filter === 'unread' ? 'primary' : 'secondary'} size="sm" onClick={() => setFilter('unread')}>未读 {unreadCount > 0 && `(${unreadCount})`}</Button>
                 </div>
 
                 {/* 通知列表 */}
