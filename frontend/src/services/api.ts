@@ -47,6 +47,11 @@ export const taskApi = {
   delete: (id: string) => api.delete(`/tasks/${id}`),
   archive: (id: string) => api.patch<Task>(`/tasks/${id}/archive`),
   restore: (id: string) => api.patch<Task>(`/tasks/${id}/restore`),
+  // 批量操作
+  batchMove: (ids: string[], status: string) => api.post<{ success: number; failed: number }>('/tasks/batch/move', { ids, status }),
+  batchDelete: (ids: string[]) => api.post<{ success: number; failed: number }>('/tasks/batch/delete', { ids }),
+  batchArchive: (ids: string[]) => api.post<{ success: number; failed: number }>('/tasks/batch/archive', { ids }),
+  batchAssign: (ids: string[], assigneeId: string) => api.post<{ success: number; failed: number }>('/tasks/batch/assign', { ids, assigneeId }),
 };
 
 export const userApi = {
@@ -90,6 +95,41 @@ export const adminApi = {
   setAdmin: (id: string, value: boolean) => api.post(`/admin/users/${id}/set-admin`, null, { params: { value } }),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   getLoginLogs: (userId?: string, page?: number) => api.get('/admin/login-logs', { params: { userId, page } }),
+};
+
+export interface Comment {
+  id: string;
+  content: string;
+  taskId: string;
+  userId: string;
+  user: { id: string; name: string; avatar: string; color: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const commentApi = {
+  getByTask: (taskId: string) => api.get<Comment[]>(`/tasks/${taskId}/comments`),
+  create: (taskId: string, content: string) => api.post<Comment>(`/tasks/${taskId}/comments`, { content }),
+  update: (taskId: string, id: string, content: string) => api.patch<Comment>(`/tasks/${taskId}/comments/${id}`, { content }),
+  delete: (taskId: string, id: string) => api.delete(`/tasks/${taskId}/comments/${id}`),
+};
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  userId: string;
+  user: { id: string; name: string; avatar: string; color: string };
+  teamId?: string;
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export const auditApi = {
+  getTeamLogs: (limit?: number, offset?: number) => api.get<AuditLog[]>('/audit/team', { params: { limit, offset } }),
+  getEntityLogs: (type: string, id: string) => api.get<AuditLog[]>(`/audit/entity/${type}/${id}`),
 };
 
 export default api;

@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, ForbiddenException, Logger } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { CryptoUtil } from '../common/crypto.util';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
   constructor(private users: UsersService, private prisma: PrismaService) { }
 
   @Get('team')
@@ -44,9 +46,10 @@ export class UsersController {
       where: { id: req.user.sub },
       select: { aiProvider: true, aiApiKey: true, aiBaseUrl: true, aiModelName: true, aiPrompt: true }
     });
+    const decryptedKey = user?.aiApiKey ? CryptoUtil.decrypt(user.aiApiKey) : null; // 解密后脱敏显示
     return {
       aiProvider: user?.aiProvider || null,
-      aiApiKey: user?.aiApiKey ? `sk-****${user.aiApiKey.slice(-4)}` : null,
+      aiApiKey: decryptedKey ? CryptoUtil.mask(decryptedKey, 4) : null,
       aiBaseUrl: user?.aiBaseUrl || null,
       aiModelName: user?.aiModelName || null,
       aiPrompt: user?.aiPrompt || null,
@@ -77,8 +80,9 @@ export class UsersController {
 
     // AI 模型配置
     if (body.aiProvider !== undefined) updateData.aiProvider = body.aiProvider || null;
-    if (body.aiApiKey && !body.aiApiKey.startsWith('sk-****')) {
-      updateData.aiApiKey = body.aiApiKey;
+    if (body.aiApiKey && !body.aiApiKey.startsWith('****')) {
+      updateData.aiApiKey = CryptoUtil.encrypt(body.aiApiKey); // 加密存储
+      this.logger.log(`User ${req.user.sub} updated AI API key`);
     }
     if (body.aiBaseUrl !== undefined) updateData.aiBaseUrl = body.aiBaseUrl || null;
     if (body.aiModelName !== undefined) updateData.aiModelName = body.aiModelName || null;

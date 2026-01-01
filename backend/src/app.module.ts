@@ -10,6 +10,8 @@ import { GatewayModule } from './gateway/gateway.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
+import { CommentsModule } from './comments/comments.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { UploadModule } from './upload/upload.module';
     NotificationsModule,
     AdminModule,
     UploadModule,
+    CommentsModule,
+    AuditModule,
   ],
 })
 export class AppModule {}

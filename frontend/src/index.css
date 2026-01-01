@@ -318,3 +318,10 @@ body {
 .btn-press:active {
   transform: scale(0.98);
 }
+
+/* 隐藏浏览器默认的密码眼睛图标 */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
