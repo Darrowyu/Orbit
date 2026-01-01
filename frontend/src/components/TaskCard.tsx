@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Task, Priority, TaskStatus, User, Subtask } from '../types';
+import { Badge, Avatar, IconButton } from './ui';
 
 interface TaskCardProps {
   task: Task;
@@ -24,9 +25,9 @@ interface TaskCardProps {
 }
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
-  const colors = { [Priority.LOW]: 'bg-green-100 text-green-800', [Priority.MEDIUM]: 'bg-yellow-100 text-yellow-800', [Priority.HIGH]: 'bg-red-100 text-red-800' };
+  const variants: Record<Priority, 'success' | 'warning' | 'danger'> = { [Priority.LOW]: 'success', [Priority.MEDIUM]: 'warning', [Priority.HIGH]: 'danger' };
   const labels = { [Priority.LOW]: '低', [Priority.MEDIUM]: '中', [Priority.HIGH]: '高' };
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${colors[priority]}`}>{labels[priority]}</span>;
+  return <Badge variant={variants[priority]} size="sm">{labels[priority]}</Badge>;
 };
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDelete, onArchive, onRestore, onToggleSubtask, onAssignSubtask, onCreateFromSubtask, isSelected, dependencyType = 'none', onSelect, isDragging, dragHandleProps, draggableProps, innerRef, style, teamMembers, isArchiveView }) => {
@@ -53,68 +54,66 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
   };
 
   const getBorder = () => {
-    if (isSelected) return 'ring-2 ring-indigo-500 border-indigo-500 shadow-md';
-    if (dependencyType === 'dependency') return 'ring-2 ring-amber-400 border-amber-400 shadow-md';
+    if (isSelected) return 'ring-2 ring-[#001C3D] border-[#001C3D] shadow-[var(--shadow-brand)]';
+    if (dependencyType === 'dependency') return 'ring-2 ring-amber-400 border-amber-400 shadow-[var(--shadow-warning)]';
     if (dependencyType === 'dependent') return 'ring-2 ring-purple-400 border-purple-400 shadow-md';
-    return 'border-gray-100 hover:shadow-md';
+    return 'border-slate-100 hover:shadow-[var(--shadow-md)] hover:border-slate-200';
   };
 
   return (
-    <div ref={innerRef} {...draggableProps} {...dragHandleProps} style={style} id={`task-${task.id}`} onClick={() => !isDragging && onSelect?.(task.id)} className={`bg-white p-4 rounded-xl shadow-sm border group relative flex flex-col gap-3 transition-all duration-200 ${isDragging ? 'shadow-2xl rotate-2 ring-2 ring-indigo-400 z-50 opacity-90' : getBorder()}`}>
+    <div ref={innerRef} {...draggableProps} {...dragHandleProps} style={style} id={`task-${task.id}`} onClick={() => !isDragging && onSelect?.(task.id)} className={`bg-white p-4 rounded-2xl shadow-[var(--shadow-sm)] border group relative flex flex-col gap-3 transition-all duration-200 ${isDragging ? 'shadow-[var(--shadow-brand-xl)] rotate-2 ring-2 ring-[#001C3D] z-50 opacity-95' : getBorder()}`}>
       <div className="flex justify-between items-start">
         <PriorityBadge priority={task.priority} />
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {isArchiveView ? (
-            <button onClick={(e) => { e.stopPropagation(); onRestore?.(task.id); }} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded" title="恢复">
+            <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onRestore?.(task.id); }} onMouseDown={(e) => e.stopPropagation()} title="恢复" className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-            </button>
+            </IconButton>
           ) : (
             <>
-              <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded" title="编辑">
+              <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(task); }} onMouseDown={(e) => e.stopPropagation()} title="编辑" className="text-slate-400 hover:text-[#001C3D] hover:bg-[#001C3D]/5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-              </button>
+              </IconButton>
               {task.status === TaskStatus.DONE && onArchive && (
-                <button onClick={(e) => { e.stopPropagation(); onArchive(task.id); }} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded" title="归档">
+                <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onArchive(task.id); }} onMouseDown={(e) => e.stopPropagation()} title="归档" className="text-slate-400 hover:text-amber-600 hover:bg-amber-50">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                </button>
+                </IconButton>
               )}
-              <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="删除">
+              <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} onMouseDown={(e) => e.stopPropagation()} title="删除" className="text-slate-400 hover:text-red-600 hover:bg-red-50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
+              </IconButton>
             </>
           )}
         </div>
       </div>
       <div>
-        <h3 className="text-gray-900 font-semibold mb-1 cursor-grab active:cursor-grabbing leading-tight">{task.title}</h3>
-        <p className="text-gray-500 text-xs line-clamp-2">{task.description}</p>
+        <h3 className="text-slate-900 font-semibold mb-1 cursor-grab active:cursor-grabbing leading-tight">{task.title}</h3>
+        <p className="text-slate-500 text-xs line-clamp-2">{task.description}</p>
       </div>
       {dependencyType !== 'none' && !isSelected && <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-opacity-10 w-fit ${dependencyType === 'dependency' ? 'bg-amber-500 text-amber-600' : 'bg-purple-500 text-purple-600'}`}>{dependencyType === 'dependency' ? '← 前置' : '→ 后续'}</div>}
       {total > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-100 rounded-full h-1.5"><div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} /></div>
-            <span className="text-[10px] text-gray-400 font-medium">{completed}/{total}</span>
+            <div className="flex-1 bg-slate-100 rounded-full h-1.5"><div className="bg-[#001C3D] h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} /></div>
+            <span className="text-[10px] text-slate-400 font-medium">{completed}/{total}</span>
           </div>
           <div className="space-y-1 mt-2" onMouseDown={(e) => e.stopPropagation()}>
             {task.subtasks.map((st) => {
               const stAssignee = getMember(st.assigneeId);
               return (
-                <div key={st.id} onMouseEnter={() => setHoveredSubtask(st.id)} onMouseLeave={() => setHoveredSubtask(null)} onClick={(e) => { e.stopPropagation(); onToggleSubtask(task.id, st.id); }} className="flex items-center gap-2 cursor-pointer group/subtask p-1 -mx-1 hover:bg-gray-50 rounded justify-between">
+                <div key={st.id} onMouseEnter={() => setHoveredSubtask(st.id)} onMouseLeave={() => setHoveredSubtask(null)} onClick={(e) => { e.stopPropagation(); onToggleSubtask(task.id, st.id); }} className="flex items-center gap-2 cursor-pointer group/subtask p-1 -mx-1 hover:bg-slate-50 rounded-lg justify-between transition-colors">
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors duration-200 shrink-0 ${st.completed ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 group-hover/subtask:border-indigo-400'}`}>{st.completed && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}</div>
-                    <span className={`text-xs truncate transition-all duration-300 ${st.completed ? 'text-gray-400 line-through opacity-75' : 'text-gray-700'}`}>{st.title}</span>
+                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors duration-200 shrink-0 ${st.completed ? 'bg-[#001C3D] border-[#001C3D]' : 'border-slate-300 group-hover/subtask:border-[#001C3D]'}`}>{st.completed && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}</div>
+                    <span className={`text-xs truncate transition-all duration-300 ${st.completed ? 'text-slate-400 line-through opacity-75' : 'text-slate-700'}`}>{st.title}</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {hoveredSubtask === st.id && (
-                      <button onClick={(e) => handleAISubdivide(st, e)} disabled={aiLoading === st.id} className="text-[10px] bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-1.5 py-0.5 rounded hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50" title="AI细分">
-                        {aiLoading === st.id ? '...' : '🤖'}
+                      <button onClick={(e) => handleAISubdivide(st, e)} disabled={aiLoading === st.id} className="text-[10px] bg-gradient-to-r from-[#001C3D] to-[#0F4C81] text-white px-1.5 py-0.5 rounded hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-0.5" title="AI细分">
+                        {aiLoading === st.id ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L14.35 9.65L22 12L14.35 14.35L12 22L9.65 14.35L2 12L9.65 9.65L12 2Z" /></svg>}
                       </button>
                     )}
                     <div className="relative group/assignee ml-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] border border-white shadow-sm transition-transform hover:scale-110 cursor-pointer overflow-hidden ${stAssignee?.avatar?.startsWith('/uploads') ? 'bg-gray-100' : stAssignee ? stAssignee.color : 'bg-gray-100 text-gray-400 border-gray-200'}`} title={stAssignee ? `负责人: ${stAssignee.name}` : '点击分配'}>
-                        {stAssignee?.avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${stAssignee.avatar}`} alt="avatar" className="w-full h-full object-cover" /> : stAssignee ? stAssignee.avatar : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
-                      </div>
+                      <Avatar src={stAssignee?.avatar} fallback={stAssignee?.avatar || '?'} size="xs" color={stAssignee?.color || 'bg-slate-100 text-slate-400'} alt={stAssignee ? `负责人: ${stAssignee.name}` : '点击分配'} className="hover:scale-110 transition-transform" />
                       <select value={st.assigneeId || ''} onChange={(e) => { e.stopPropagation(); onAssignSubtask(task.id, st.id, e.target.value); }} onClick={(e) => e.stopPropagation()} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                         <option value="">待认领</option>
                         {teamMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -127,17 +126,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
           </div>
         </div>
       )}
-      <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-auto">
+      <div className="flex justify-between items-center pt-2 border-t border-slate-100 mt-auto">
         <div className="flex items-center space-x-2">
-          <div className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs shadow-sm shrink-0 overflow-hidden ${mainAssignee?.avatar?.startsWith('/uploads') ? 'bg-gray-100' : mainAssignee ? mainAssignee.color : 'bg-gray-100 text-gray-500'}`} title={`负责人: ${mainAssignee?.name || '待认领'}`}>
-            {mainAssignee?.avatar?.startsWith('/uploads') ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${mainAssignee.avatar}`} alt="avatar" className="w-full h-full object-cover" /> : mainAssignee?.avatar || '?'}
-          </div>
-          {mainAssignee && <span className="text-[10px] text-gray-500 font-medium truncate max-w-[60px]">{mainAssignee.name}</span>}
-          {task.dueDate && task.status !== TaskStatus.DONE && <div className={`flex items-center text-[10px] px-1.5 py-0.5 rounded border ml-1 ${isOverdue ? 'bg-red-50 text-red-600 border-red-100' : isDueSoon ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>{formatDate(task.dueDate)}</div>}
+          <Avatar src={mainAssignee?.avatar} fallback={mainAssignee?.avatar || '?'} size="xs" color={mainAssignee?.color || 'bg-slate-100 text-slate-500'} alt={`负责人: ${mainAssignee?.name || '待认领'}`} />
+          {mainAssignee && <span className="text-[10px] text-slate-500 font-medium truncate max-w-[60px]">{mainAssignee.name}</span>}
+          {task.dueDate && task.status !== TaskStatus.DONE && <Badge variant={isOverdue ? 'danger' : isDueSoon ? 'warning' : 'default'} size="sm" className="ml-1">{formatDate(task.dueDate)}</Badge>}
         </div>
-        <div className="flex space-x-1 opacity-25 hover:opacity-100 transition-opacity" onMouseDown={(e) => e.stopPropagation()}>
-          {task.status !== TaskStatus.TODO && <button onClick={(e) => { e.stopPropagation(); const sts = Object.values(TaskStatus); onMove(task.id, sts[sts.indexOf(task.status) - 1]); }} className="p-1 hover:bg-gray-100 rounded text-gray-500" title="上一步"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>}
-          {task.status !== TaskStatus.DONE && <button onClick={(e) => { e.stopPropagation(); const sts = Object.values(TaskStatus); onMove(task.id, sts[sts.indexOf(task.status) + 1]); }} className="p-1 hover:bg-gray-100 rounded text-gray-500" title="下一步"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button>}
+        <div className="flex gap-0.5 opacity-25 hover:opacity-100 transition-opacity" onMouseDown={(e) => e.stopPropagation()}>
+          {task.status !== TaskStatus.TODO && <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const sts = Object.values(TaskStatus); onMove(task.id, sts[sts.indexOf(task.status) - 1]); }} title="上一步" className="w-6 h-6 text-slate-500 hover:text-[#001C3D] hover:bg-slate-100"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></IconButton>}
+          {task.status !== TaskStatus.DONE && <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const sts = Object.values(TaskStatus); onMove(task.id, sts[sts.indexOf(task.status) + 1]); }} title="下一步" className="w-6 h-6 text-slate-500 hover:text-[#001C3D] hover:bg-slate-100"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></IconButton>}
         </div>
       </div>
     </div>
