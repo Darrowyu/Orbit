@@ -94,6 +94,26 @@ export interface Subtask {
   assigneeId?: string;
 }
 
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
+  teamId: string;
+  createdAt: string;
+}
+
+export interface Attachment {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  taskId: string;
+  uploaderId: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -104,6 +124,8 @@ export interface Task {
   projectId?: string;
   teamId: string;
   subtasks: Subtask[];
+  labels?: Label[];
+  attachments?: Attachment[];
   createdAt: string;
   dueDate: string | null;
   dependsOn: string[];
@@ -117,7 +139,45 @@ export interface AIResponse {
   priority: string;
 }
 
-export type NotificationType = 'TASK_ASSIGNED' | 'TASK_STATUS_CHANGED' | 'SUBTASK_COMPLETED' | 'TEAM_JOINED' | 'ROLE_CHANGED' | 'TEAM_MEMBER_ADDED';
+export interface Milestone {
+  id: string;
+  name: string;
+  description: string;
+  dueDate: string;
+  status: 'PENDING' | 'COMPLETED';
+  projectId: string;
+  tasks?: { id: string; title: string; status: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  priority: string;
+  subtasks: string[];
+  labelIds: string[];
+  teamId: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  userId: string;
+  startTime: string;
+  endTime: string | null;
+  duration: number | null;
+  description: string;
+  createdAt: string;
+  task?: { id: string; title: string };
+  user?: { id: string; name: string; avatar: string; color: string };
+}
+
+export type NotificationType = 'TASK_ASSIGNED' | 'TASK_STATUS_CHANGED' | 'SUBTASK_COMPLETED' | 'TEAM_JOINED' | 'ROLE_CHANGED' | 'TEAM_MEMBER_ADDED' | 'MENTION';
 
 export interface Notification {
   id: string;

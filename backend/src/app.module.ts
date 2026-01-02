@@ -14,6 +14,15 @@ import { UploadModule } from './upload/upload.module';
 import { CommentsModule } from './comments/comments.module';
 import { AuditModule } from './audit/audit.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { LabelsModule } from './labels/labels.module';
+import { SearchModule } from './search/search.module';
+import { AttachmentsModule } from './attachments/attachments.module';
+import { MilestonesModule } from './milestones/milestones.module';
+import { MentionsModule } from './mentions/mentions.module';
+import { TemplatesModule } from './templates/templates.module';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
+import { ReportsModule } from './reports/reports.module';
+import { RecurringModule } from './recurring/recurring.module';
 
 @Module({
   imports: [
@@ -32,6 +41,15 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     CommentsModule,
     AuditModule,
     SchedulerModule,
+    LabelsModule,
+    SearchModule,
+    AttachmentsModule,
+    MilestonesModule,
+    MentionsModule,
+    TemplatesModule,
+    TimeEntriesModule,
+    ReportsModule,
+    RecurringModule,
   ],
 })
 export class AppModule { }

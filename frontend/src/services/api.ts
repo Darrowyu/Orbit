@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats } from '../types';
+import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
@@ -166,6 +166,100 @@ export interface AuditLog {
 export const auditApi = {
   getTeamLogs: (limit?: number, offset?: number) => api.get<AuditLog[]>('/audit/team', { params: { limit, offset } }),
   getEntityLogs: (type: string, id: string) => api.get<AuditLog[]>(`/audit/entity/${type}/${id}`),
+};
+
+export const labelApi = {
+  getAll: () => api.get<Label[]>('/labels'),
+  create: (data: { name: string; color?: string }) => api.post<Label>('/labels', data),
+  update: (id: string, data: { name?: string; color?: string }) => api.put<Label>(`/labels/${id}`, data),
+  delete: (id: string) => api.delete(`/labels/${id}`),
+  addToTask: (taskId: string, labelId: string) => api.post(`/labels/task/${taskId}/${labelId}`),
+  removeFromTask: (taskId: string, labelId: string) => api.delete(`/labels/task/${taskId}/${labelId}`),
+  getTaskLabels: (taskId: string) => api.get<Label[]>(`/labels/task/${taskId}`),
+  setTaskLabels: (taskId: string, labelIds: string[]) => api.put<Label[]>(`/labels/task/${taskId}`, { labelIds }),
+};
+
+export interface SearchResult {
+  tasks: Array<{ id: string; title: string; description: string; status: string; projectId?: string; priority: string }>;
+  projects: Array<{ id: string; name: string; description: string; color: string }>;
+  comments: Array<{ id: string; content: string; taskId: string; taskTitle: string }>;
+}
+
+export const searchApi = {
+  search: (query: string, limit?: number) => api.get<SearchResult>('/search', { params: { q: query, limit } }),
+};
+
+export const attachmentApi = {
+  getByTask: (taskId: string) => api.get<Attachment[]>(`/attachments/${taskId}`),
+  upload: (taskId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<Attachment>(`/attachments/${taskId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  delete: (id: string) => api.delete(`/attachments/${id}`),
+};
+
+export const milestoneApi = {
+  getByProject: (projectId: string) => api.get<Milestone[]>('/milestones', { params: { projectId } }),
+  getOne: (id: string) => api.get<Milestone>(`/milestones/${id}`),
+  getProgress: (id: string) => api.get<{ total: number; done: number; progress: number }>(`/milestones/${id}/progress`),
+  create: (data: { name: string; description?: string; dueDate: string; projectId: string }) => api.post<Milestone>('/milestones', data),
+  update: (id: string, data: { name?: string; description?: string; dueDate?: string; status?: string }) => api.put<Milestone>(`/milestones/${id}`, data),
+  delete: (id: string) => api.delete(`/milestones/${id}`),
+  addTask: (milestoneId: string, taskId: string) => api.post(`/milestones/${milestoneId}/tasks/${taskId}`),
+  removeTask: (milestoneId: string, taskId: string) => api.delete(`/milestones/${milestoneId}/tasks/${taskId}`),
+};
+
+export const templateApi = {
+  getAll: () => api.get<TaskTemplate[]>('/templates'),
+  getOne: (id: string) => api.get<TaskTemplate>(`/templates/${id}`),
+  create: (data: { name: string; title: string; description?: string; priority?: string; subtasks?: string[]; labelIds?: string[] }) => api.post<TaskTemplate>('/templates', data),
+  update: (id: string, data: Partial<TaskTemplate>) => api.put<TaskTemplate>(`/templates/${id}`, data),
+  delete: (id: string) => api.delete(`/templates/${id}`),
+};
+
+export const timeEntryApi = {
+  start: (taskId: string, description?: string) => api.post<TimeEntry>(`/time-entries/start/${taskId}`, { description }),
+  stop: (id: string) => api.post<TimeEntry>(`/time-entries/stop/${id}`),
+  getRunning: () => api.get<TimeEntry | null>('/time-entries/running'),
+  getByTask: (taskId: string) => api.get<TimeEntry[]>(`/time-entries/task/${taskId}`),
+  getTotalByTask: (taskId: string) => api.get<number>(`/time-entries/task/${taskId}/total`),
+  getMy: (start?: string, end?: string) => api.get<TimeEntry[]>('/time-entries/my', { params: { start, end } }),
+  update: (id: string, data: { description?: string; duration?: number }) => api.put<TimeEntry>(`/time-entries/${id}`, data),
+  delete: (id: string) => api.delete(`/time-entries/${id}`),
+};
+
+export interface BurndownData { date: string; remaining: number; completed: number }
+export interface CumulativeFlowData { date: string; TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number }
+export interface TeamWorkload { user: { id: string; name: string; avatar: string; color: string }; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> }
+
+export const reportApi = {
+  getBurndown: (projectId: string, start: string, end: string) => api.get<BurndownData[]>('/reports/burndown', { params: { projectId, start, end } }),
+  getCumulativeFlow: (projectId: string, start: string, end: string) => api.get<CumulativeFlowData[]>('/reports/cumulative-flow', { params: { projectId, start, end } }),
+  getTeamWorkload: () => api.get<TeamWorkload[]>('/reports/team-workload'),
+  getProjectStats: (projectId: string) => api.get('/reports/project-stats', { params: { projectId } }),
+  getTimeReport: (start?: string, end?: string) => api.get('/reports/time', { params: { start, end } }),
+};
+
+export interface RecurringTask {
+  id: string;
+  templateId: string;
+  template: TaskTemplate;
+  frequency: string;
+  interval: number;
+  daysOfWeek: number[];
+  dayOfMonth: number | null;
+  startDate: string;
+  endDate: string | null;
+  nextRun: string | null;
+  isActive: boolean;
+}
+
+export const recurringApi = {
+  getAll: () => api.get<RecurringTask[]>('/recurring'),
+  create: (data: { templateId: string; frequency: string; interval?: number; daysOfWeek?: number[]; dayOfMonth?: number; startDate: string; endDate?: string }) => api.post<RecurringTask>('/recurring', data),
+  update: (id: string, data: { isActive?: boolean; endDate?: string }) => api.put<RecurringTask>(`/recurring/${id}`, data),
+  delete: (id: string) => api.delete(`/recurring/${id}`),
 };
 
 export default api;
