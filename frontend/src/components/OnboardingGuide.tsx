@@ -31,8 +31,8 @@ export const OnboardingGuide: React.FC<Props> = ({ onComplete }) => {
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-8 mx-4">
         <div className="flex justify-between items-center mb-6">
           <div className="flex gap-2">
-            {steps.map((_, i) => (
-              <div key={i} className={`w-8 h-1 rounded-full transition-colors ${i <= step ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+            {steps.map((s, i) => (
+              <div key={`step-${s.title}`} className={`w-8 h-1 rounded-full transition-colors ${i <= step ? 'bg-indigo-500' : 'bg-gray-200'}`} />
             ))}
           </div>
           <button onClick={handleSkip} className="text-gray-400 hover:text-gray-600 text-sm">跳过引导</button>

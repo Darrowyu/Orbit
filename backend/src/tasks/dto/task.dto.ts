@@ -14,6 +14,7 @@ export class CreateTaskDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() priority?: string;
   @IsOptional() @IsString() assigneeId?: string;
+  @IsOptional() @IsString() projectId?: string;
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SubtaskDto) subtasks?: SubtaskDto[];
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() dependsOn?: string[];
@@ -25,6 +26,7 @@ export class UpdateTaskDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() priority?: string;
   @IsOptional() @IsString() assigneeId?: string;
+  @IsOptional() @IsString() projectId?: string;
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SubtaskDto) subtasks?: SubtaskDto[];
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() dependsOn?: string[];
@@ -38,6 +40,7 @@ export interface Task {
   status: string;
   priority: string;
   assigneeId?: string;
+  projectId?: string;
   teamId: string;
   subtasks: SubtaskDto[];
   dueDate?: string;

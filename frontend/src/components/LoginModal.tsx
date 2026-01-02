@@ -22,8 +22,8 @@ const PasswordStrength: React.FC<{ password: string }> = ({ password }) => {
   return (
     <div className="mt-3">
       <div className="flex gap-1.5 h-1">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className={`flex-1 rounded-full transition-all duration-500 ease-out ${i <= strength ? strength <= 1 ? 'bg-red-500' : strength === 2 ? 'bg-amber-500' : strength === 3 ? 'bg-blue-500' : 'bg-emerald-500' : 'bg-slate-100'}`} />
+        {[1, 2, 3, 4].map(level => (
+          <div key={`strength-${level}`} className={`flex-1 rounded-full transition-all duration-500 ease-out ${level <= strength ? strength <= 1 ? 'bg-red-500' : strength === 2 ? 'bg-amber-500' : strength === 3 ? 'bg-blue-500' : 'bg-emerald-500' : 'bg-slate-100'}`} />
         ))}
       </div>
       <p className="text-[10px] text-slate-400 mt-1.5 text-right font-medium">
@@ -227,7 +227,7 @@ export const LoginModal: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-center gap-2" onPaste={handleCodePaste}>
               {code.map((digit, idx) => (
-                <input key={idx} ref={el => { codeInputRefs.current[idx] = el; }} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={e => handleCodeChange(idx, e.target.value)} onKeyDown={e => handleCodeKeyDown(idx, e)} className="w-11 h-14 text-center text-xl font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#001C3D]/20 focus:border-[#001C3D] transition-all" />
+                <input key={`code-input-${idx}`} ref={el => { codeInputRefs.current[idx] = el; }} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={e => handleCodeChange(idx, e.target.value)} onKeyDown={e => handleCodeKeyDown(idx, e)} className="w-11 h-14 text-center text-xl font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#001C3D]/20 focus:border-[#001C3D] transition-all" />
               ))}
             </div>
             {error && <p className="text-sm text-red-500 text-center flex items-center justify-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{error}</p>}

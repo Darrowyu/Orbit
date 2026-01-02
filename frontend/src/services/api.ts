@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Task, User, AIResponse, Team, TeamMember, Notification } from '../types';
+import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
@@ -71,19 +71,55 @@ export const userApi = {
   testAiConfig: (data: { aiProvider: string; aiApiKey: string; aiBaseUrl?: string; aiModelName?: string }) => api.post<{ success: boolean; message: string; response?: string }>('/users/ai-config/test', data),
 };
 
+export interface TeamMemberInfo { id: string; name: string; skills?: string[] }
+export interface TaskHistoryInfo { id: string; title: string; status: string; assigneeId?: string }
+export interface RiskTask { id: string; title: string; status: string; dueDate?: string | null; priority?: string }
+
 export const aiApi = {
   generate: (title: string, customPrompt?: string) => api.post<AIResponse>('/ai/generate', { title, customPrompt }),
   subdivide: (subtaskTitle: string, parentContext?: string) => api.post<{ steps: string[] }>('/ai/subdivide', { subtaskTitle, parentContext }),
   estimateWorkload: (taskTitle: string, description: string, subtasks: string[]) => api.post<{ hours: number; confidence: string; factors: string[] }>('/ai/estimate-workload', { taskTitle, description, subtasks }),
-  recommendAssignee: (taskTitle: string, description: string, teamMembers: any[], taskHistory: any[]) => api.post<{ recommendedId: string; reason: string; alternatives: { id: string; reason: string }[] }>('/ai/recommend-assignee', { taskTitle, description, teamMembers, taskHistory }),
-  detectRisks: (tasks: any[]) => api.post<{ taskId: string; riskLevel: string; reasons: string[]; suggestions: string[] }[]>('/ai/detect-risks', { tasks }),
+  recommendAssignee: (taskTitle: string, description: string, teamMembers: TeamMemberInfo[], taskHistory: TaskHistoryInfo[]) => api.post<{ recommendedId: string; reason: string; alternatives: { id: string; reason: string }[] }>('/ai/recommend-assignee', { taskTitle, description, teamMembers, taskHistory }),
+  detectRisks: (tasks: RiskTask[]) => api.post<{ taskId: string; riskLevel: string; reasons: string[]; suggestions: string[] }[]>('/ai/detect-risks', { tasks }),
 };
 
+export const projectApi = {
+  getAll: (archived = false) => api.get<Project[]>('/projects', { params: { archived } }),
+  getOne: (id: string) => api.get<Project>(`/projects/${id}`),
+  getStats: (id: string) => api.get<ProjectStats>(`/projects/${id}/stats`),
+  create: (data: { name: string; description?: string; color?: string; startDate?: string; endDate?: string }) => api.post<Project>('/projects', data),
+  update: (id: string, data: Partial<Project>) => api.put<Project>(`/projects/${id}`, data),
+  delete: (id: string) => api.delete(`/projects/${id}`),
+  archive: (id: string) => api.post<Project>(`/projects/${id}/archive`),
+  restore: (id: string) => api.post<Project>(`/projects/${id}/restore`),
+  addMember: (projectId: string, userId: string, role?: string) => api.post<Project>(`/projects/${projectId}/members`, { userId, role }),
+  updateMember: (projectId: string, memberId: string, role: string) => api.put<Project>(`/projects/${projectId}/members/${memberId}`, { role }),
+  removeMember: (projectId: string, memberId: string) => api.delete<Project>(`/projects/${projectId}/members/${memberId}`),
+};
+
+export interface PaginatedNotifications { notifications: Notification[]; total: number; page: number; limit: number; totalPages: number }
+
+export interface NotificationPreference {
+  id: string;
+  taskAssigned: boolean;
+  taskStatusChanged: boolean;
+  taskDueSoon: boolean;
+  taskOverdue: boolean;
+  newComment: boolean;
+  projectMemberAdded: boolean;
+  teamJoined: boolean;
+  browserPush: boolean;
+}
+
 export const notificationApi = {
-  getAll: () => api.get<Notification[]>('/notifications'),
+  getAll: (page = 1, limit = 20) => api.get<PaginatedNotifications>('/notifications', { params: { page, limit } }),
   getUnreadCount: () => api.get<number>('/notifications/unread-count'),
   markAsRead: (id: string) => api.post(`/notifications/${id}/read`),
   markAllAsRead: () => api.post('/notifications/read-all'),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+  deleteAll: () => api.delete('/notifications'),
+  getPreferences: () => api.get<NotificationPreference>('/notifications/preferences'),
+  updatePreferences: (data: Partial<NotificationPreference>) => api.put<NotificationPreference>('/notifications/preferences', data),
 };
 
 export const adminApi = {

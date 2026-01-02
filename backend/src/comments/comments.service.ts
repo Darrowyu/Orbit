@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CommentDto { content: string; }
 
@@ -7,7 +8,7 @@ export interface CommentDto { content: string; }
 export class CommentsService {
   private readonly logger = new Logger(CommentsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   async findByTask(taskId: string) {
     return this.prisma.comment.findMany({
@@ -24,6 +25,10 @@ export class CommentsService {
       data: { content: dto.content, taskId, userId },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },
     });
+    if (task.assigneeId && task.assigneeId !== userId) {
+      const commenter = await this.prisma.user.findUnique({ where: { id: userId } });
+      await this.notifications.notifyNewComment(task.title, task.assigneeId, commenter?.name || '某人');
+    }
     this.logger.log(`User ${userId} commented on task ${taskId}`);
     return comment;
   }

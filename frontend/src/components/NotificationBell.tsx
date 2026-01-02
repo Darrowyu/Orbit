@@ -34,6 +34,8 @@ export const NotificationBell: React.FC = () => {
   const typeIcons: Record<string, string> = {
     TASK_ASSIGNED: '📋', TASK_STATUS_CHANGED: '🔄', SUBTASK_COMPLETED: '✅',
     TEAM_JOINED: '🎉', ROLE_CHANGED: '👑', TEAM_MEMBER_ADDED: '👋',
+    PROJECT_MEMBER_ADDED: '📂', PROJECT_MEMBER_REMOVED: '📤', PROJECT_ROLE_CHANGED: '🔐',
+    NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨',
   };
 
   const goToNotifications = () => { setIsOpen(false); navigate('/notifications'); };

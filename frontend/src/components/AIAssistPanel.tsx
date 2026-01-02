@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { aiApi } from '../services/api';
+import { aiApi, TaskHistoryInfo } from '../services/api';
 import { User } from '../types';
 import { Button } from './ui';
 
@@ -8,7 +8,7 @@ interface Props {
   description: string;
   subtasks: string[];
   teamMembers: User[];
-  taskHistory: any[];
+  taskHistory: TaskHistoryInfo[];
   onAssigneeRecommend: (id: string) => void;
   onWorkloadEstimate: (hours: number) => void;
 }
@@ -25,7 +25,7 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
       const { data } = await aiApi.estimateWorkload(taskTitle, description, subtasks);
       setWorkload(data);
       onWorkloadEstimate(data.hours);
-    } catch (err) { console.error(err); }
+    } catch { /* 工作量预估失败静默处理 */ }
     finally { setLoading(null); }
   };
 
@@ -33,9 +33,9 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
     if (!taskTitle || !teamMembers.length) return;
     setLoading('assignee');
     try {
-      const { data } = await aiApi.recommendAssignee(taskTitle, description, teamMembers, taskHistory);
+      const { data } = await aiApi.recommendAssignee(taskTitle, description, teamMembers.map(m => ({ id: m.id, name: m.name, skills: m.skills })), taskHistory);
       setRecommendation(data);
-    } catch (err) { console.error(err); }
+    } catch { /* 推荐负责人失败静默处理 */ }
     finally { setLoading(null); }
   };
 
@@ -67,7 +67,7 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
           <div className="text-2xl font-bold text-indigo-600 mb-2">{workload.hours} 小时</div>
           <div className="text-xs text-gray-500">
             <div className="font-medium mb-1">影响因素：</div>
-            <ul className="list-disc list-inside space-y-0.5">{workload.factors.map((f, i) => <li key={i}>{f}</li>)}</ul>
+            <ul className="list-disc list-inside space-y-0.5">{workload.factors.map((f) => <li key={f}>{f}</li>)}</ul>
           </div>
         </div>
       )}
@@ -85,8 +85,8 @@ export const AIAssistPanel: React.FC<Props> = ({ taskTitle, description, subtask
               </div>
               <Button size="xs" onClick={() => applyRecommendation(recommendation.recommendedId)}>采纳</Button>
             </div>
-            {recommendation.alternatives.map((alt, i) => (
-              <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+            {recommendation.alternatives.map((alt) => (
+              <div key={alt.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${teamMembers.find(m => m.id === alt.id)?.color || 'bg-gray-200'}`}>{teamMembers.find(m => m.id === alt.id)?.avatar}</div>
                   <div>

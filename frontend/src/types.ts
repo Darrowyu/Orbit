@@ -11,7 +11,15 @@ export enum Priority {
   HIGH = 'HIGH',
 }
 
+export enum ProjectStatus {
+  ACTIVE = 'ACTIVE',
+  ON_HOLD = 'ON_HOLD',
+  COMPLETED = 'COMPLETED',
+  ARCHIVED = 'ARCHIVED',
+}
+
 export type TeamRole = 'owner' | 'admin' | 'member';
+export type ProjectRole = 'owner' | 'admin' | 'member';
 
 export interface User {
   id: string;
@@ -46,6 +54,39 @@ export interface Team {
   createdAt: string;
 }
 
+export interface ProjectMember {
+  id: string;
+  role: ProjectRole;
+  joinedAt: string;
+  user: { id: string; name: string; email: string; avatar: string; color: string };
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  status: ProjectStatus;
+  startDate: string | null;
+  endDate: string | null;
+  teamId: string;
+  ownerId: string;
+  owner?: User;
+  members: ProjectMember[];
+  taskCount: number;
+  isArchived: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectStats {
+  total: number;
+  byStatus: { TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number };
+  byPriority: { LOW: number; MEDIUM: number; HIGH: number };
+  progress: number;
+}
+
 export interface Subtask {
   id: string;
   title: string;
@@ -60,6 +101,7 @@ export interface Task {
   status: TaskStatus;
   priority: Priority;
   assigneeId?: string;
+  projectId?: string;
   teamId: string;
   subtasks: Subtask[];
   createdAt: string;
@@ -83,7 +125,8 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
 }
+

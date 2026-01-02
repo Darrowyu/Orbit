@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User } from '../types';
 import { TaskCard } from './TaskCard';
-import { Badge, IconButton } from './ui';
+import { Badge } from './ui';
 
 const COLUMN_ICONS = {
   [TaskStatus.TODO]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
@@ -143,11 +143,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
     <main className={`flex-1 overflow-x-auto overflow-y-hidden relative ${isDragging ? 'select-none' : ''}`} id="kanban-board-container" onClick={() => setSelectedTaskId(null)}>
       <DependencyLines tasks={tasks} selectedTaskId={selectedTaskId} isDragging={isDragging} />
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
-        <div className="h-full flex px-4 sm:px-6 lg:px-8 py-8 gap-6 min-w-max">
+        <div className="h-full flex px-4 sm:px-6 lg:px-8 py-6 gap-4 lg:gap-6 min-w-max">
           {COLUMN_CONFIG.map((col) => {
             const colTasks = getSorted(filtered.filter((t) => t.status === col.id));
             return (
-              <div key={col.id} className="w-80 flex-shrink-0 flex flex-col">
+              <div key={col.id} className="w-72 sm:w-80 lg:w-[340px] xl:w-[380px] 2xl:w-[420px] flex-shrink-0 flex flex-col">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-500">{COLUMN_ICONS[col.id]}</span>

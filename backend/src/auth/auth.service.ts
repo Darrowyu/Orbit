@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { UserEntity } from '../common/types';
 
 @Injectable()
 export class AuthService {
@@ -35,5 +36,5 @@ export class AuthService {
     return { user: this.sanitize(user), token };
   }
 
-  sanitize(user: any) { const { password, ...rest } = user; return rest; }
+  sanitize(user: Partial<UserEntity> & { password?: string }) { const { password, ...rest } = user; return rest; }
 }

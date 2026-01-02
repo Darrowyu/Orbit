@@ -20,8 +20,8 @@ export const TeamSetup: React.FC<Props> = ({ onComplete }) => {
     try {
       await createTeam(teamName);
       onComplete();
-    } catch (err: any) {
-      setError(err.response?.data?.message || '创建失败');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } }).response?.data?.message || '创建失败');
     } finally { setIsLoading(false); }
   };
 
@@ -33,8 +33,8 @@ export const TeamSetup: React.FC<Props> = ({ onComplete }) => {
     try {
       await joinByCode(inviteCode.toUpperCase());
       onComplete();
-    } catch (err: any) {
-      setError(err.response?.data?.message || '加入失败，请检查邀请码');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } }).response?.data?.message || '加入失败，请检查邀请码');
     } finally { setIsLoading(false); }
   };
 

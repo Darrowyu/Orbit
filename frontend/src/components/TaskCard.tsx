@@ -49,7 +49,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
     setAiLoading(subtask.id);
     try {
       await onCreateFromSubtask(subtask.title, task.id, task.title, task.description);
-    } catch (err) { console.error('AI细分失败:', err); }
+    } catch { /* AI 细分失败静默处理 */ }
     finally { setAiLoading(null); }
   };
 

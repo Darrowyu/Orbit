@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useAuthStore } from '../stores/authStore';
 import { Notification } from '../types';
-import { Button } from '../components/ui';
+import NotificationSettings from '../components/NotificationSettings';
 
 const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -20,19 +20,35 @@ const formatTime = (dateStr: string) => {
 };
 
 const getTypeStyle = (type: string) => {
-    switch (type) {
-        case 'task_assigned': return 'bg-blue-50 text-blue-600';
-        case 'task_status': return 'bg-emerald-50 text-emerald-600';
-        case 'team_joined': return 'bg-purple-50 text-purple-600';
-        default: return 'bg-neutral-50 text-neutral-500';
-    }
+    const styles: Record<string, string> = {
+        TASK_ASSIGNED: 'bg-blue-50 text-blue-600',
+        TASK_STATUS_CHANGED: 'bg-emerald-50 text-emerald-600',
+        TEAM_JOINED: 'bg-purple-50 text-purple-600',
+        PROJECT_MEMBER_ADDED: 'bg-indigo-50 text-indigo-600',
+        PROJECT_MEMBER_REMOVED: 'bg-orange-50 text-orange-600',
+        PROJECT_ROLE_CHANGED: 'bg-amber-50 text-amber-600',
+        NEW_COMMENT: 'bg-cyan-50 text-cyan-600',
+        TASK_DUE_SOON: 'bg-yellow-50 text-yellow-600',
+        TASK_OVERDUE: 'bg-red-50 text-red-600',
+    };
+    return styles[type] || 'bg-neutral-50 text-neutral-500';
+};
+
+const getTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+        TASK_ASSIGNED: '📋', TASK_STATUS_CHANGED: '🔄', SUBTASK_COMPLETED: '✅',
+        TEAM_JOINED: '🎉', ROLE_CHANGED: '👑', TEAM_MEMBER_ADDED: '👋',
+        PROJECT_MEMBER_ADDED: '📂', PROJECT_MEMBER_REMOVED: '📤', PROJECT_ROLE_CHANGED: '🔐',
+        NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨',
+    };
+    return icons[type] || '📢';
 };
 
 export const NotificationsPage: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { notifications, fetchNotifications, markAsRead, markAllAsRead, unreadCount } = useNotificationStore();
-    const [filter, setFilter] = useState<'all' | 'unread'>('all');
+    const { notifications, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications, unreadCount, loadMore, hasMore, isLoading } = useNotificationStore();
+    const [filter, setFilter] = useState<'all' | 'unread' | 'settings'>('all');
 
     useEffect(() => { if (user) fetchNotifications(); }, [user, fetchNotifications]);
 
@@ -57,9 +73,14 @@ export const NotificationsPage: React.FC = () => {
                             <h1 className="text-base font-semibold text-neutral-900">通知</h1>
                         </div>
                     </div>
-                    {unreadCount > 0 && (
-                        <button onClick={markAllAsRead} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">全部已读</button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {unreadCount > 0 && (
+                            <button onClick={markAllAsRead} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">全部已读</button>
+                        )}
+                        {notifications.length > 0 && (
+                            <button onClick={deleteAllNotifications} className="text-sm text-red-400 hover:text-red-600 transition-colors">清空</button>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -74,10 +95,16 @@ export const NotificationsPage: React.FC = () => {
                         未读 {unreadCount > 0 && <span className="ml-1 text-xs">({unreadCount})</span>}
                         {filter === 'unread' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />}
                     </button>
+                    <button onClick={() => setFilter('settings')} className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${filter === 'settings' ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'}`}>
+                        设置
+                        {filter === 'settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />}
+                    </button>
                 </div>
 
-                {/* 通知列表 */}
-                {filteredNotifications.length === 0 ? (
+                {/* 设置面板 */}
+                {filter === 'settings' ? (
+                    <div className="minimal-card p-6"><NotificationSettings /></div>
+                ) : filteredNotifications.length === 0 ? (
                     <div className="minimal-card p-12 text-center animate-fade-in">
                         <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
@@ -88,9 +115,9 @@ export const NotificationsPage: React.FC = () => {
                 ) : (
                     <div className="minimal-card overflow-hidden divide-y divide-neutral-50">
                         {filteredNotifications.map((notification, index) => (
-                            <div key={notification.id} onClick={() => handleClick(notification)} className={`flex items-start gap-4 p-4 hover:bg-neutral-50/50 cursor-pointer transition-colors animate-fade-in-up ${!notification.read ? 'bg-indigo-50/20' : ''}`} style={{ animationDelay: `${index * 20}ms` }}>
-                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${getTypeStyle(notification.type)}`}>
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <div key={notification.id} onClick={() => handleClick(notification)} className={`group flex items-start gap-4 p-4 hover:bg-neutral-50/50 cursor-pointer transition-colors animate-fade-in-up ${!notification.read ? 'bg-indigo-50/20' : ''}`} style={{ animationDelay: `${index * 20}ms` }}>
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-lg ${getTypeStyle(notification.type)}`}>
+                                    {getTypeIcon(notification.type)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
@@ -100,8 +127,18 @@ export const NotificationsPage: React.FC = () => {
                                     <p className="text-sm text-neutral-500 mt-0.5 line-clamp-2">{notification.message}</p>
                                 </div>
                                 {!notification.read && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2" />}
+                                <button onClick={(e) => { e.stopPropagation(); deleteNotification(notification.id); }} className="p-1.5 rounded-lg text-neutral-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all shrink-0" title="删除">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
                             </div>
                         ))}
+                    </div>
+                )}
+                {hasMore && (
+                    <div className="mt-6 text-center">
+                        <button onClick={loadMore} disabled={isLoading} className="px-6 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors disabled:opacity-50">
+                            {isLoading ? '加载中...' : '加载更多'}
+                        </button>
                     </div>
                 )}
             </main>

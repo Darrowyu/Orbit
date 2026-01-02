@@ -31,8 +31,8 @@ export const TaskCardSkeleton: React.FC = () => (
         </div>
         <div className="space-y-1">
             <Skeleton variant="rectangular" height={6} animation="none" />
-            {[1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-2">
+            {[1, 2].map((n) => (
+                <div key={`subtask-skeleton-${n}`} className="flex items-center gap-2">
                     <Skeleton variant="rectangular" width={14} height={14} animation="none" />
                     <Skeleton variant="text" width="60%" height={12} animation="none" />
                 </div>
@@ -54,7 +54,7 @@ export const KanbanColumnSkeleton: React.FC<{ count?: number }> = ({ count = 3 }
             <Skeleton variant="circular" width={24} height={20} />
         </div>
         <div className="flex-1 rounded-xl p-2 bg-gray-100/50 space-y-3">
-            {Array.from({ length: count }).map((_, i) => <TaskCardSkeleton key={i} />)}
+            {Array.from({ length: count }).map((_, i) => <TaskCardSkeleton key={`task-skeleton-${i}`} />)}
         </div>
     </div>
 );
