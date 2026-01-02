@@ -37,6 +37,8 @@ model User {
   notificationPreference NotificationPreference?
   comments       Comment[]
   auditLogs      AuditLog[]
+  mentions       Mention[] @relation("MentionedUser")
+  timeEntries    TimeEntry[] @relation("TimeEntryUser")
 }
 
 model LoginLog {
@@ -51,16 +53,20 @@ model LoginLog {
 }
 
 model Team {
-  id          String       @id @default(cuid())
-  name        String
-  code        String       @unique
-  inviteLink  String       @unique
-  ownerId     String
-  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id])
-  members     TeamMember[]
-  projects    Project[]
-  tasks       Task[]
-  createdAt   DateTime     @default(now())
+  id            String         @id @default(cuid())
+  name          String
+  code          String         @unique
+  inviteLink    String         @unique
+  ownerId       String
+  owner         User           @relation("TeamOwner", fields: [ownerId], references: [id])
+  members       TeamMember[]
+  projects      Project[]
+  tasks         Task[]
+  labels        Label[]
+  boardColumns   BoardColumn[]
+  taskTemplates  TaskTemplate[]
+  recurringTasks RecurringTask[]
+  createdAt      DateTime        @default(now())
 }
 
 model Project {
@@ -77,6 +83,7 @@ model Project {
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   members     ProjectMember[]
   tasks       Task[]          @relation("ProjectTasks")
+  milestones  Milestone[]
   isArchived  Boolean         @default(false)
   archivedAt  DateTime?
   createdAt   DateTime        @default(now())
@@ -121,6 +128,11 @@ model Task {
   team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]
   comments    Comment[]
+  labels      TaskLabel[]
+  attachments Attachment[]
+  milestoneId String?
+  milestone   Milestone? @relation("MilestoneTasks", fields: [milestoneId], references: [id], onDelete: SetNull)
+  timeEntries TimeEntry[]
   dueDate     DateTime?
   dependsOn   String[]  @default([])
   isArchived  Boolean   @default(false)
@@ -193,4 +205,127 @@ model AuditLog {
   createdAt  DateTime @default(now())
   @@index([teamId, createdAt])
   @@index([entityType, entityId])
+}
+
+model Label {
+  id        String      @id @default(cuid())
+  name      String
+  color     String      @default("#6366f1")
+  teamId    String
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tasks     TaskLabel[]
+  createdAt DateTime    @default(now())
+  @@unique([teamId, name])
+  @@index([teamId])
+}
+
+model TaskLabel {
+  id      String @id @default(cuid())
+  taskId  String
+  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  labelId String
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  @@unique([taskId, labelId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploaderId   String
+  createdAt    DateTime @default(now())
+  @@index([taskId])
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  dueDate     DateTime
+  status      String   @default("PENDING")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]   @relation("MilestoneTasks")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([projectId])
+}
+
+model Mention {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("MentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+  sourceType String
+  sourceId   String
+  createdAt  DateTime @default(now())
+  @@index([userId])
+  @@index([sourceType, sourceId])
+}
+
+model BoardColumn {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  order     Int
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([teamId])
+}
+
+model TaskTemplate {
+  id             String          @id @default(cuid())
+  name           String
+  title          String
+  description    String          @default("")
+  priority       String          @default("MEDIUM")
+  subtasks       Json            @default("[]")
+  labelIds       Json            @default("[]")
+  teamId         String
+  team           Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy      String
+  recurringTasks RecurringTask[]
+  createdAt      DateTime        @default(now())
+  @@index([teamId])
+}
+
+model TimeEntry {
+  id          String    @id @default(cuid())
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("TimeEntryUser", fields: [userId], references: [id], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?
+  description String    @default("")
+  createdAt   DateTime  @default(now())
+  @@index([taskId])
+  @@index([userId])
+}
+
+model RecurringTask {
+  id          String    @id @default(cuid())
+  templateId  String
+  template    TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  frequency   String
+  interval    Int       @default(1)
+  daysOfWeek  Int[]     @default([])
+  dayOfMonth  Int?
+  startDate   DateTime
+  endDate     DateTime?
+  lastCreated DateTime?
+  nextRun     DateTime?
+  isActive    Boolean   @default(true)
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  @@index([teamId, isActive])
 }

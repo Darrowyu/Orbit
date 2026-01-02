@@ -6,7 +6,7 @@ export type NotificationType =
   | 'TASK_ASSIGNED' | 'TASK_STATUS_CHANGED' | 'SUBTASK_COMPLETED' 
   | 'TEAM_JOINED' | 'ROLE_CHANGED' | 'TEAM_MEMBER_ADDED'
   | 'PROJECT_MEMBER_ADDED' | 'PROJECT_MEMBER_REMOVED' | 'PROJECT_ROLE_CHANGED'
-  | 'NEW_COMMENT' | 'TASK_DUE_SOON' | 'TASK_OVERDUE';
+  | 'NEW_COMMENT' | 'TASK_DUE_SOON' | 'TASK_OVERDUE' | 'MENTION';
 
 @Injectable()
 export class NotificationsService {
@@ -84,6 +84,7 @@ export class NotificationsService {
       PROJECT_MEMBER_REMOVED: 'projectMemberAdded', PROJECT_ROLE_CHANGED: 'projectMemberAdded',
       TEAM_JOINED: 'teamJoined', ROLE_CHANGED: 'teamJoined',
       TEAM_MEMBER_ADDED: 'teamJoined', SUBTASK_COMPLETED: 'taskStatusChanged',
+      MENTION: 'newComment',
     };
     const key = typeMap[type];
     return key ? Boolean(pref[key]) : true;
