@@ -18,6 +18,7 @@ export class AuthController {
   @Get('me')
   async me(@Request() req) {
     const user = await this.users.findById(req.user.sub);
+    if (!user) return null;
     return this.auth.sanitize(user);
   }
 }

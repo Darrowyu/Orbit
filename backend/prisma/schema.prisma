@@ -26,14 +26,17 @@ model User {
   currentTeamId String?
   lastLoginAt  DateTime?
   createdAt    DateTime       @default(now())
-  tasks        Task[]         @relation("TaskAssignee")
-  subtasks     Subtask[]      @relation("SubtaskAssignee")
-  teamMembers  TeamMember[]
-  ownedTeams   Team[]         @relation("TeamOwner")
-  loginLogs    LoginLog[]
-  notifications Notification[]
-  comments     Comment[]
-  auditLogs    AuditLog[]
+  tasks          Task[]          @relation("TaskAssignee")
+  subtasks       Subtask[]       @relation("SubtaskAssignee")
+  teamMembers    TeamMember[]
+  ownedTeams     Team[]          @relation("TeamOwner")
+  ownedProjects  Project[]       @relation("ProjectOwner")
+  projectMembers ProjectMember[]
+  loginLogs      LoginLog[]
+  notifications  Notification[]
+  notificationPreference NotificationPreference?
+  comments       Comment[]
+  auditLogs      AuditLog[]
 }
 
 model LoginLog {
@@ -55,8 +58,42 @@ model Team {
   ownerId     String
   owner       User         @relation("TeamOwner", fields: [ownerId], references: [id])
   members     TeamMember[]
+  projects    Project[]
   tasks       Task[]
   createdAt   DateTime     @default(now())
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  name        String
+  description String          @default("")
+  color       String          @default("#6366f1")
+  status      String          @default("ACTIVE") // ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
+  startDate   DateTime?
+  endDate     DateTime?
+  teamId      String
+  team        Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ownerId     String
+  owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members     ProjectMember[]
+  tasks       Task[]          @relation("ProjectTasks")
+  isArchived  Boolean         @default(false)
+  archivedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  @@index([teamId, isArchived])
+  @@index([ownerId])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role      String   @default("member") // owner, admin, member
+  joinedAt  DateTime @default(now())
+  @@unique([userId, projectId])
 }
 
 model TeamMember {
@@ -78,6 +115,8 @@ model Task {
   priority    String    @default("MEDIUM")
   assigneeId  String?
   assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?  @relation("ProjectTasks", fields: [projectId], references: [id], onDelete: SetNull)
   teamId      String
   team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]
@@ -89,6 +128,7 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   @@index([teamId, isArchived])
+  @@index([projectId])
 }
 
 model Subtask {
@@ -112,6 +152,20 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   @@index([userId, read])
+}
+
+model NotificationPreference {
+  id                  String  @id @default(cuid())
+  userId              String  @unique
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskAssigned        Boolean @default(true)
+  taskStatusChanged   Boolean @default(true)
+  taskDueSoon         Boolean @default(true)
+  taskOverdue         Boolean @default(true)
+  newComment          Boolean @default(true)
+  projectMemberAdded  Boolean @default(true)
+  teamJoined          Boolean @default(true)
+  browserPush         Boolean @default(true)
 }
 
 model Comment {

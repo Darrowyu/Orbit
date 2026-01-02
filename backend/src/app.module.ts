@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TeamsModule } from './teams/teams.module';
 import { TasksModule } from './tasks/tasks.module';
+import { ProjectsModule } from './projects/projects.module';
 import { AiModule } from './ai/ai.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -12,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
 import { CommentsModule } from './comments/comments.module';
 import { AuditModule } from './audit/audit.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { AuditModule } from './audit/audit.module';
     AuthModule,
     UsersModule,
     TeamsModule,
+    ProjectsModule,
     TasksModule,
     AiModule,
     GatewayModule,
@@ -28,6 +31,7 @@ import { AuditModule } from './audit/audit.module';
     UploadModule,
     CommentsModule,
     AuditModule,
+    SchedulerModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

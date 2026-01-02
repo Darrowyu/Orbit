@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useTaskStore } from '../stores/taskStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { Task, Notification } from '../types';
+import { showBrowserNotification } from './pushNotification';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -64,7 +65,10 @@ export const connectSocket = (teamId?: string): void => {
   socket.on('task:created', (task: Task) => useTaskStore.getState().addTask(task));
   socket.on('task:updated', (task: Task) => useTaskStore.getState().updateTaskLocal(task));
   socket.on('task:deleted', (id: string) => useTaskStore.getState().removeTask(id));
-  socket.on('notification', (n: Notification) => useNotificationStore.getState().addNotification(n));
+  socket.on('notification', (n: Notification) => {
+    useNotificationStore.getState().addNotification(n);
+    showBrowserNotification(n.title, { body: n.message, tag: n.id });
+  });
 };
 
 export const disconnectSocket = () => {

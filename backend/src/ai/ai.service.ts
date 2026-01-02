@@ -62,7 +62,7 @@ export class AiService {
 
     return this.executeWithFallback<AIResponse>(
       prompt,
-      (json) => ({ description: json.description, subtasks: json.subtasks, priority: json.priority }),
+      (json) => { const j = json as { description: string; subtasks: string[]; priority: string }; return { description: j.description, subtasks: j.subtasks, priority: j.priority as 'LOW' | 'MEDIUM' | 'HIGH' }; },
       this.localFallbackTaskDetails(title),
       userConfig
     );
@@ -76,7 +76,7 @@ export class AiService {
 
     return this.executeWithFallback<string[]>(
       prompt,
-      (json) => json.steps || ['AI正在休息，请手动添加步骤'],
+      (json) => (json as { steps?: string[] }).steps || ['AI正在休息，请手动添加步骤'],
       ['调研现状', '制定方案', '执行实施', '验收确认'],
       userConfig
     );
@@ -88,7 +88,7 @@ export class AiService {
     const prompt = `你是项目管理专家。请评估以下任务的工作量：\n任务：${taskTitle}\n描述：${description}\n子任务：${subtasks.join('、')}\n\n返回JSON：{"hours":数字,"confidence":"high/medium/low","factors":["因素1","因素2"]}`;
     return this.executeWithFallback(
       prompt,
-      (json) => json,
+      (json) => json as WorkloadEstimate,
       { hours: 4, confidence: 'low', factors: ['基于历史数据默认估算', 'AI服务暂时不可用'] },
       userConfig
     );
@@ -103,7 +103,7 @@ export class AiService {
 
     return this.executeWithFallback(
       prompt,
-      (json) => json,
+      (json) => json as AssigneeRecommendation,
       { recommendedId: teamMembers[0]?.id, reason: '轮询分配（AI服务暂不可用）', alternatives: [] },
       userConfig
     );
@@ -118,7 +118,7 @@ export class AiService {
 
     return this.executeWithFallback(
       prompt,
-      (json) => Array.isArray(json) ? json : [],
+      (json) => Array.isArray(json) ? json as RiskDetection[] : [],
       [],
       userConfig
     );
@@ -131,7 +131,7 @@ export class AiService {
 
   private async executeWithFallback<T>(
     prompt: string,
-    parser: (json: any) => T,
+    parser: (json: unknown) => T,
     localFallback: T,
     userConfig?: UserAiConfig | null // 用户自定义配置
   ): Promise<T> {
@@ -269,7 +269,7 @@ export class AiService {
   }
 
   // Helper: JSON Extractor
-  private extractJSON(text: string): any {
+  private extractJSON(text: string): unknown {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (jsonMatch) return JSON.parse(jsonMatch[0]);

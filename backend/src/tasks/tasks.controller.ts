@@ -3,13 +3,14 @@ import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedRequest } from '../common/types';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
   constructor(private tasks: TasksService, private prisma: PrismaService) { }
 
-  private async getTeamId(req: any, teamId?: string) {
+  private async getTeamId(req: AuthenticatedRequest, teamId?: string) {
     if (teamId) return teamId;
     const user = await this.prisma.user.findUnique({ where: { id: req.user.sub } });
     if (!user?.currentTeamId) throw new ForbiddenException('请先加入或创建团队');

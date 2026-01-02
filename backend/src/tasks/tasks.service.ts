@@ -98,7 +98,7 @@ export class TasksService {
     return { success: true };
   }
 
-  private format(task: any) {
+  private format(task: { createdAt: Date; dueDate: Date | null; archivedAt: Date | null; [key: string]: unknown }) {
     return { ...task, createdAt: task.createdAt.toISOString(), dueDate: task.dueDate?.toISOString() || null, archivedAt: task.archivedAt?.toISOString() || null };
   }
 }

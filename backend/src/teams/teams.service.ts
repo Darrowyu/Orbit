@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamDto, JoinTeamDto, UpdateMemberRoleDto } from './dto/team.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { randomBytes } from 'crypto';
+import { TeamEntity, TeamMemberEntity } from '../common/types';
 
 @Injectable()
 export class TeamsService {
@@ -99,11 +100,11 @@ export class TeamsService {
     if (!member || !roles.includes(member.role)) throw new ForbiddenException('权限不足');
   }
 
-  private formatTeam(team: any) {
+  private formatTeam(team: TeamEntity) {
     return {
       id: team.id, name: team.name, code: team.code, inviteLink: team.inviteLink,
       ownerId: team.ownerId, createdAt: team.createdAt?.toISOString(),
-      members: team.members?.map((m: any) => ({
+      members: team.members?.map((m: TeamMemberEntity) => ({
         id: m.id, role: m.role, joinedAt: m.joinedAt?.toISOString(),
         user: { id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color },
       })),

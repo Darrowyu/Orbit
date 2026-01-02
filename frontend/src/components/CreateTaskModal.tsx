@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Priority, Subtask, User } from '../types';
+import { Task, TaskStatus, Priority, Subtask, User, Project } from '../types';
 import { aiApi } from '../services/api';
 import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
@@ -12,11 +12,13 @@ interface Props {
   teamMembers: User[];
   initialData?: Task | null;
   allTasks?: Task[];
+  projects?: Project[];
+  currentProjectId?: string | null;
 }
 
 interface DraftSubtask { id: string; title: string; assigneeId?: string; }
 
-export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [] }) => {
+export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [], projects = [], currentProjectId }) => {
   const { user } = useAuthStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -26,6 +28,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
   const [assigneeId, setAssigneeId] = useState(teamMembers[0]?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [dependsOn, setDependsOn] = useState<string[]>([]);
+  const [projectId, setProjectId] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -37,11 +40,13 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
         setDueDate(initialData.dueDate ? new Date(initialData.dueDate).toISOString().split('T')[0] : '');
         setSubtasks(initialData.subtasks.map((s) => ({ id: s.id, title: s.title, assigneeId: s.assigneeId })));
         setDependsOn(initialData.dependsOn || []);
+        setProjectId(initialData.projectId || '');
       } else {
         setTitle(''); setDescription(''); setPriority(Priority.MEDIUM); setSubtasks([]); setAssigneeId(teamMembers[0]?.id || ''); setDueDate(''); setDependsOn([]);
+        setProjectId(currentProjectId || '');
       }
     }
-  }, [isOpen, initialData, teamMembers]);
+  }, [isOpen, initialData, teamMembers, currentProjectId]);
 
   if (!isOpen) return null;
   const handleAiAssist = async () => {
@@ -52,7 +57,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
       setDescription(data.description);
       setSubtasks(data.subtasks.map((t) => ({ id: Math.random().toString(36).slice(2, 11), title: t, assigneeId })));
       setPriority(data.priority as Priority);
-    } catch (e) { console.error(e); }
+    } catch { /* AI 生成失败静默处理 */ }
     finally { setIsAiLoading(false); }
   };
 
@@ -65,6 +70,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
     onSubmit({
       title, description, status: initialData?.status || TaskStatus.TODO, priority, assigneeId,
       subtasks: formatted, dueDate: dueDate ? new Date(dueDate + 'T23:59:59').toISOString() : null, dependsOn,
+      projectId: projectId || undefined,
     });
     onClose();
   };
@@ -89,6 +95,14 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
             <Select label="优先级" value={priority} onChange={(e) => setPriority(e.target.value as Priority)} options={[{ value: Priority.LOW, label: '低' }, { value: Priority.MEDIUM, label: '中' }, { value: Priority.HIGH, label: '高' }]} />
             <Select label="负责人" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} options={teamMembers.map((m) => ({ value: m.id, label: `${m.avatar} ${m.name}` }))} />
           </div>
+          {projects.length > 0 && (
+            <Select
+              label="所属项目"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              options={[{ value: '', label: '不属于任何项目' }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+            />
+          )}
           <Input type="date" label="截止日期" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">前置任务（依赖）</label>
@@ -123,18 +137,18 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
             </div>
             <button type="button" onClick={addSubtask} className="text-sm text-[#001C3D] hover:text-[#002855] font-medium flex items-center py-1 px-2 rounded-lg hover:bg-[#001C3D]/5 transition-colors"><svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>添加子任务</button>
           </div>
-            {!initialData && title && description && (
-              <AIAssistPanel
-                taskTitle={title}
-                description={description}
-                subtasks={subtasks.map(s => s.title)}
-                teamMembers={teamMembers}
-                taskHistory={allTasks.filter(t => t.status === TaskStatus.DONE).slice(0, 10)}
-                onAssigneeRecommend={(id) => setAssigneeId(id)}
-                onWorkloadEstimate={(hours) => console.log('预估工作量:', hours)}
-              />
-            )}
-          </div>
+          {!initialData && title && description && (
+            <AIAssistPanel
+              taskTitle={title}
+              description={description}
+              subtasks={subtasks.map(s => s.title)}
+              teamMembers={teamMembers}
+              taskHistory={allTasks.filter(t => t.status === TaskStatus.DONE).slice(0, 10)}
+              onAssigneeRecommend={(id) => setAssigneeId(id)}
+              onWorkloadEstimate={() => { /* 预估工作量回调 */ }}
+            />
+          )}
+        </div>
         <div className="p-6 border-t border-slate-100 shrink-0 flex justify-end gap-3"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">{initialData ? '保存修改' : '创建任务'}</Button></div>
       </form>
     </Modal>

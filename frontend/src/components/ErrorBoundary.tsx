@@ -14,9 +14,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('ErrorBoundary caught:', error, errorInfo); // 可替换为日志服务
-  }
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo): void { /* 可接入日志服务 */ }
 
   handleRetry = (): void => {
     this.setState({ hasError: false, error: null });

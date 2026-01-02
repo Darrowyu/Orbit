@@ -8,7 +8,7 @@ export class AdminService {
 
   async getUsers(query: { page?: number; limit?: number; search?: string; status?: string }) {
     const { page = 1, limit = 20, search, status } = query;
-    const where: any = {};
+    const where: { OR?: { name?: object; email?: object }[]; isActive?: boolean } = {};
     if (search) where.OR = [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }];
     if (status === 'active') where.isActive = true;
     if (status === 'disabled') where.isActive = false;

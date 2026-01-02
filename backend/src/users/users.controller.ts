@@ -76,7 +76,7 @@ export class UsersController {
     }
 
     // 构建更新数据
-    const updateData: any = {};
+    const updateData: { aiProvider?: string | null; aiApiKey?: string; aiBaseUrl?: string | null; aiModelName?: string | null; aiPrompt?: string | null } = {};
 
     // AI 模型配置
     if (body.aiProvider !== undefined) updateData.aiProvider = body.aiProvider || null;

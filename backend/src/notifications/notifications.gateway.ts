@@ -32,7 +32,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     }
   }
 
-  sendToUser(userId: string, notification: any) {
+  sendToUser(userId: string, notification: Record<string, unknown>) {
     this.server?.to(`user:${userId}`).emit('notification', notification);
   }
 }

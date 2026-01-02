@@ -60,7 +60,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       const { data } = await adminApi.getStats();
       set({ stats: data });
-    } catch (e) { console.error('fetchStats error:', e); }
+    } catch { /* 静默处理统计获取失败 */ }
   },
 
   fetchUsers: async (query = {}) => {
@@ -68,7 +68,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       const { data } = await adminApi.getUsers(query);
       set({ users: data.users, total: data.total, page: data.page, isLoading: false });
-    } catch (e) { console.error('fetchUsers error:', e); set({ isLoading: false }); }
+    } catch { set({ isLoading: false }); }
   },
 
   toggleUserStatus: async (id) => {
@@ -94,6 +94,6 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       const { data } = await adminApi.getLoginLogs(userId, page);
       set({ loginLogs: data.logs });
-    } catch (e) { console.error('fetchLoginLogs error:', e); }
+    } catch { /* 静默处理日志获取失败 */ }
   },
 }));

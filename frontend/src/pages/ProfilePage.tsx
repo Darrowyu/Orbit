@@ -79,7 +79,7 @@ export const ProfilePage: React.FC = () => {
       await userApi.changePassword(oldPwd, newPwd);
       await alert({ title: '修改成功', message: '密码已更新', type: 'info' });
       setOldPwd(''); setNewPwd(''); setConfirmPwd('');
-    } catch (e: any) { setPwdError(e.response?.data?.message || '修改失败'); }
+    } catch (e: unknown) { setPwdError((e as { response?: { data?: { message?: string } } }).response?.data?.message || '修改失败'); }
   };
 
   const tabs = [

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { User } from '../types';
 import { authApi } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
+import { requestNotificationPermission, shouldAskPermission } from '../services/pushNotification';
 
 interface AuthStore {
   user: User | null;
@@ -30,6 +31,7 @@ export const useAuthStore = create<AuthStore>()(
           const { data } = await authApi.login(email, password);
           set({ user: data.user, token: data.token, isLoading: false });
           connectSocket();
+          if (shouldAskPermission()) requestNotificationPermission();
         } catch (e) {
           set({ isLoading: false });
           throw e;

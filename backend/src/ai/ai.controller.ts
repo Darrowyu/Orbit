@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { AiService, AIResponse } from './ai.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TeamMemberInfo, TaskInfo } from './ai.types';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -24,12 +25,12 @@ export class AiController {
   }
 
   @Post('recommend-assignee')
-  recommendAssignee(@Request() req, @Body() body: { taskTitle: string; description: string; teamMembers: any[]; taskHistory: any[] }) {
+  recommendAssignee(@Request() req, @Body() body: { taskTitle: string; description: string; teamMembers: TeamMemberInfo[]; taskHistory: TaskInfo[] }) {
     return this.ai.recommendAssignee(body.taskTitle, body.description, body.teamMembers, body.taskHistory, req.user.sub);
   }
 
   @Post('detect-risks')
-  detectRisks(@Request() req, @Body() body: { tasks: any[] }) {
+  detectRisks(@Request() req, @Body() body: { tasks: TaskInfo[] }) {
     return this.ai.detectRisks(body.tasks, req.user.sub);
   }
 }

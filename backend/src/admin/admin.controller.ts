@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Body }
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuperAdminGuard } from './super-admin.guard';
+import { AuthenticatedRequest } from '../common/types';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
@@ -20,16 +21,16 @@ export class AdminController {
   getUser(@Param('id') id: string) { return this.adminService.getUser(id); }
 
   @Post('users/:id/toggle-status')
-  toggleStatus(@Param('id') id: string, @Request() req: any) { return this.adminService.toggleUserStatus(id, req.user.id); }
+  toggleStatus(@Param('id') id: string, @Request() req: AuthenticatedRequest) { return this.adminService.toggleUserStatus(id, req.user.id); }
 
   @Post('users/:id/reset-password')
   resetPassword(@Param('id') id: string, @Body() body: { password: string }) { return this.adminService.resetPassword(id, body.password); }
 
   @Post('users/:id/set-admin')
-  setAdmin(@Param('id') id: string, @Query('value') value: string, @Request() req: any) { return this.adminService.setSuperAdmin(id, value === 'true', req.user.id); }
+  setAdmin(@Param('id') id: string, @Query('value') value: string, @Request() req: AuthenticatedRequest) { return this.adminService.setSuperAdmin(id, value === 'true', req.user.id); }
 
   @Delete('users/:id')
-  deleteUser(@Param('id') id: string, @Request() req: any) { return this.adminService.deleteUser(id, req.user.id); }
+  deleteUser(@Param('id') id: string, @Request() req: AuthenticatedRequest) { return this.adminService.deleteUser(id, req.user.id); }
 
   @Get('login-logs')
   getLoginLogs(@Query() query: { userId?: string; page?: string; limit?: string }) {

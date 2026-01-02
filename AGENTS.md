@@ -192,3 +192,90 @@
  **禁止**循环中查询数据库（N+1问题）
  **禁止**在WHERE中使用函数（会失效索引）
  **禁止**大表不分页
+
+---
+
+## Skills 自动触发规则 (Auto-Trigger Rules)
+
+以下规则定义何时必须调用对应的 Skill。这是强制性要求，不可跳过。
+
+### 核心开发流程 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **任何创意工作前** - 创建功能、构建组件、添加功能或修改行为 | `superpowers-brainstorming` | 通过对话探索用户意图、需求和设计，输出设计文档 |
+| **有规范或多步骤任务需求时** | `superpowers-writing-plans` | 在写代码前创建详细的分步实施计划，保存到 `docs/plans/` |
+| **存在 plan.md 或草稿规格需要完善时** | `spec-interview` | 深度访谈完善技术规格，涵盖技术实现、UI/UX、边缘情况、风险等 |
+| **有写好的实施计划需要执行时** | `superpowers-executing-plans` | 分批执行任务，每批后报告并等待审查 |
+| **实现新功能或修复 Bug 前** | `superpowers-tdd` | 强制 RED-GREEN-REFACTOR 循环，先写失败测试再写实现 |
+| **遇到任何 Bug、测试失败或意外行为时** | `superpowers-debugging` | 系统化调试，必须先找到根本原因再提出修复方案 |
+| **声称工作完成、修复或通过前** | `superpowers-verification` | 必须运行验证命令并确认输出后才能做任何成功声明 |
+| **完成任务、实现主要功能或合并前** | `superpowers-code-review` | 请求代码审查，验证工作是否满足需求 |
+| **实现完成、所有测试通过后** | `superpowers-finishing-branch` | 指导如何整合工作 - 合并、PR或清理 |
+
+### 项目操作 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **启动项目、运行开发服务器时** | `dev-setup` | 启动前后端开发环境 |
+| **代码修改完成后、提交前** | `build-check` | 运行构建检查和类型验证 |
+| **修改 Prisma schema、需要同步数据库时** | `db-migrate` | 执行数据库迁移操作 |
+| **执行 git pull 或切换分支后** | `git-pull-workflow` | 检查依赖同步、数据库迁移、环境变量更新 |
+| **发布版本、更新版本号、推送代码时** | `version-release` | 自动升级版本、同步 package.json、提交并推送 |
+| **开始需要与当前工作区隔离的功能开发时** | `superpowers-git-worktrees` | 创建隔离的 Git 工作树 |
+| **在 Windows 系统执行 git 操作时** | `git-windows` | 使用 `git -C` 格式避免 PowerShell 解析问题 |
+
+### 代码审查 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **审查代码、检查代码质量、PR review 时** | `code-review` | 按检查清单进行代码审查 |
+| **审查 TypeScript/JavaScript 代码时** | `typescript-review` | 检查类型安全、React 模式、错误处理、命名规范 |
+
+### 前端开发 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **构建 Web 组件、页面或应用时** | `frontend-design` | 创建独特的、生产级的前端界面，避免泛化 AI 风格 |
+| **创建 UI 组件、业务组件、复合组件时** | `component-development` | React + TypeScript 企业级组件开发规范 |
+| **测试前端功能、调试 UI 行为、截图时** | `webapp-testing` | 使用 Playwright 进行 Web 应用测试 |
+
+### 后端与数据库 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **设计新 REST/GraphQL API、审查 API 规范时** | `api-design-principles` | REST/GraphQL API 设计原则、分页、错误处理、HATEOAS |
+| **实现认证系统、保护 API、调试安全问题时** | `auth-implementation-patterns` | JWT、RBAC、权限系统实现模式 |
+| **迁移数据库、变更 schema、零停机部署时** | `database-migration` | 跨 ORM 的数据库迁移策略 |
+| **设计新数据库 schema、优化表结构时** | `postgresql-table-design` | PostgreSQL schema 设计、数据类型、索引、约束、分区 |
+| **调试慢查询、设计索引、优化性能时** | `sql-optimization-patterns` | SQL 查询优化和 EXPLAIN 分析 |
+| **构建长期运行流程、分布式事务、后台任务时** | `workflow-orchestration-patterns` | 工作流编排、Saga 模式、状态机 |
+
+### 数据与报表 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **向利益相关者展示分析、创建数据报告时** | `data-storytelling` | 将数据转化为有说服力的叙述 |
+| **构建业务仪表板、选择指标、设计可视化布局时** | `kpi-dashboard-design` | KPI 仪表板设计最佳实践 |
+
+---
+
+### Skills 触发优先级
+
+当多个 Skill 可能适用时，按以下优先级：
+
+1. **调试类** (`superpowers-debugging`) - 遇到问题时最高优先
+2. **验证类** (`superpowers-verification`, `build-check`) - 完成声明前必须
+3. **流程类** (`superpowers-tdd`, `superpowers-code-review`) - 开发过程中
+4. **专业类** (其他 Skills) - 按具体任务需求
+
+### 禁止跳过的场景
+
+以下场景**绝对禁止**跳过对应 Skill：
+
+- ❌ 不运行 `build-check` 就提交代码
+- ❌ 不运行 `superpowers-verification` 就声称"完成"
+- ❌ 不运行 `superpowers-tdd` 就写实现代码
+- ❌ 遇到 Bug 不用 `superpowers-debugging` 就尝试修复
+- ❌ 修改 Prisma schema 后不运行 `db-migrate`
+- ❌ 在 Windows 上用错误的 git 命令格式

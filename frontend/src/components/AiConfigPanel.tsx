@@ -103,8 +103,7 @@ export const AiConfigPanel: React.FC = () => {
             setModelName(data.aiModelName || '');
             setAiPrompt(data.aiPrompt || '');
             setIsConfigured(data.isConfigured);
-        } catch (e) {
-            console.error('Load AI config failed:', e);
+        } catch { /* 加载配置失败静默处理 */
         } finally {
             setLoading(false);
         }
@@ -144,8 +143,8 @@ export const AiConfigPanel: React.FC = () => {
             });
             if (provider) setIsConfigured(true);
             setTestResult({ success: true, message: '配置已保存' });
-        } catch (e: any) {
-            setTestResult({ success: false, message: e.response?.data?.message || '保存失败' });
+        } catch (e: unknown) {
+            setTestResult({ success: false, message: (e as { response?: { data?: { message?: string } } }).response?.data?.message || '保存失败' });
         } finally {
             setSaving(false);
         }
@@ -163,7 +162,7 @@ export const AiConfigPanel: React.FC = () => {
             setAiPrompt('');
             setIsConfigured(false);
             setTestResult({ success: true, message: '已恢复使用系统默认' });
-        } catch (e) {
+        } catch {
             setTestResult({ success: false, message: '清除失败' });
         } finally {
             setSaving(false);
@@ -186,8 +185,8 @@ export const AiConfigPanel: React.FC = () => {
                 aiModelName: modelName || undefined,
             });
             setTestResult(data);
-        } catch (e: any) {
-            setTestResult({ success: false, message: e.response?.data?.message || '连接测试失败' });
+        } catch (e: unknown) {
+            setTestResult({ success: false, message: (e as { response?: { data?: { message?: string } } }).response?.data?.message || '连接测试失败' });
         } finally {
             setTesting(false);
         }
