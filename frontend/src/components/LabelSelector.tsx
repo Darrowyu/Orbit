@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Label } from '../types';
 import { Tag } from './ui/Tag';
 import { useLabelStore } from '../stores/labelStore';
 import { labelApi } from '../services/api';

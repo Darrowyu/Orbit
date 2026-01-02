@@ -10,6 +10,39 @@ const formatBytes = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+type SettingOption = { value: string; label: string };
+
+type SettingItemBase = { key: string; label: string; desc: string; unit?: string };
+type SettingItemSelect = SettingItemBase & { type: 'select'; options: SettingOption[] };
+type SettingItemInput = SettingItemBase & { type: 'text' | 'number' };
+type SettingItem = SettingItemSelect | SettingItemInput;
+type SettingGroup = { title: string; items: SettingItem[] };
+
+const SETTING_GROUPS: SettingGroup[] = [
+  {
+    title: 'AI 配置',
+    items: [
+      { key: 'ai_enabled', label: '全局AI功能', type: 'select', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '禁用' }], desc: '禁用后用户无法使用AI任务分解功能' },
+      { key: 'ai_default_provider', label: '默认Provider', type: 'select', options: [{ value: 'gemini', label: 'Gemini' }, { value: 'openai', label: 'OpenAI' }, { value: 'custom', label: '自定义' }], desc: '用户未配置时的默认AI服务商' },
+    ],
+  },
+  {
+    title: '存储配置',
+    items: [
+      { key: 'upload_max_size', label: '附件大小限制', type: 'number', unit: 'MB', desc: '单个文件最大上传大小' },
+      { key: 'upload_allowed_types', label: '允许文件类型', type: 'text', desc: '逗号分隔，如: jpg,png,pdf,doc' },
+    ],
+  },
+  {
+    title: '安全配置',
+    items: [
+      { key: 'login_max_attempts', label: '登录失败锁定', type: 'number', unit: '次', desc: '超过次数后临时锁定账户' },
+      { key: 'password_min_length', label: '密码最小长度', type: 'number', unit: '位', desc: '用户密码最小字符数' },
+      { key: 'session_expires', label: '会话有效期', type: 'select', options: [{ value: '1', label: '1天' }, { value: '7', label: '7天' }, { value: '30', label: '30天' }], desc: '用户登录状态保持时间' },
+    ],
+  },
+];
+
 export const AdminSettings: React.FC = memo(() => {
   const { settings, storageStats, fetchSettings, updateSetting, fetchStorageStats } = useAdminStore();
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
@@ -27,31 +60,6 @@ export const AdminSettings: React.FC = memo(() => {
     await updateSetting(key, localSettings[key] || '');
     setSaving(null);
   };
-
-  const settingGroups = [
-    {
-      title: 'AI 配置',
-      items: [
-        { key: 'ai_enabled', label: '全局AI功能', type: 'select', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '禁用' }], desc: '禁用后用户无法使用AI任务分解功能' },
-        { key: 'ai_default_provider', label: '默认Provider', type: 'select', options: [{ value: 'gemini', label: 'Gemini' }, { value: 'openai', label: 'OpenAI' }, { value: 'custom', label: '自定义' }], desc: '用户未配置时的默认AI服务商' },
-      ],
-    },
-    {
-      title: '存储配置',
-      items: [
-        { key: 'upload_max_size', label: '附件大小限制', type: 'number', unit: 'MB', desc: '单个文件最大上传大小' },
-        { key: 'upload_allowed_types', label: '允许文件类型', type: 'text', desc: '逗号分隔，如: jpg,png,pdf,doc' },
-      ],
-    },
-    {
-      title: '安全配置',
-      items: [
-        { key: 'login_max_attempts', label: '登录失败锁定', type: 'number', unit: '次', desc: '超过次数后临时锁定账户' },
-        { key: 'password_min_length', label: '密码最小长度', type: 'number', unit: '位', desc: '用户密码最小字符数' },
-        { key: 'session_expires', label: '会话有效期', type: 'select', options: [{ value: '1', label: '1天' }, { value: '7', label: '7天' }, { value: '30', label: '30天' }], desc: '用户登录状态保持时间' },
-      ],
-    },
-  ];
 
   return (
     <div className="space-y-6">
@@ -73,7 +81,7 @@ export const AdminSettings: React.FC = memo(() => {
       )}
 
       {/* 设置分组 */}
-      {settingGroups.map((group) => (
+      {SETTING_GROUPS.map((group) => (
         <div key={group.title} className="minimal-card p-5">
           <h3 className="text-sm font-medium text-neutral-500 mb-4">{group.title}</h3>
           <div className="space-y-4">
@@ -85,7 +93,7 @@ export const AdminSettings: React.FC = memo(() => {
                 </div>
                 <div className="flex-1 flex items-center gap-2">
                   {item.type === 'select' ? (
-                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options!]} className="w-32" />
+                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options]} className="w-32" />
                   ) : (
                     <div className="flex items-center gap-2">
                       <Input type={item.type} value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" className="w-24" />

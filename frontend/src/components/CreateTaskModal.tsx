@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Priority, Subtask, User, Project, Label } from '../types';
+import { Task, TaskStatus, Priority, Subtask, User, Project } from '../types';
 import { aiApi } from '../services/api';
 import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
@@ -22,7 +22,7 @@ interface DraftSubtask { id: string; title: string; assigneeId?: string; }
 
 export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [], projects = [], currentProjectId }) => {
   const { user } = useAuthStore();
-  const { labels, fetchLabels } = useLabelStore();
+  const { fetchLabels } = useLabelStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
@@ -32,7 +32,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
   const [dueDate, setDueDate] = useState('');
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [projectId, setProjectId] = useState<string>('');
-  const [selectedLabels, setSelectedLabels] = useState<Label[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -46,11 +46,11 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
         setSubtasks(initialData.subtasks.map((s) => ({ id: s.id, title: s.title, assigneeId: s.assigneeId })));
         setDependsOn(initialData.dependsOn || []);
         setProjectId(initialData.projectId || '');
-        setSelectedLabels((initialData as any).labels || []);
+        setSelectedLabelIds(initialData.labels?.map((l) => l.id) || []);
       } else {
         setTitle(''); setDescription(''); setPriority(Priority.MEDIUM); setSubtasks([]); setAssigneeId(teamMembers[0]?.id || ''); setDueDate(''); setDependsOn([]);
         setProjectId(currentProjectId || '');
-        setSelectedLabels([]);
+        setSelectedLabelIds([]);
       }
     }
   }, [isOpen, initialData, teamMembers, currentProjectId, fetchLabels]);
@@ -78,7 +78,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
       title, description, status: initialData?.status || TaskStatus.TODO, priority, assigneeId,
       subtasks: formatted, dueDate: dueDate ? new Date(dueDate + 'T23:59:59').toISOString() : null, dependsOn,
       projectId: projectId || undefined,
-      labelIds: selectedLabels.map(l => l.id),
+      labelIds: selectedLabelIds,
     } as any);
     onClose();
   };
@@ -114,7 +114,7 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
           <Input type="date" label="截止日期" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">标签</label>
-            <LabelSelector labels={labels} selectedLabels={selectedLabels} onChange={setSelectedLabels} />
+            <LabelSelector selectedIds={selectedLabelIds} onChange={setSelectedLabelIds} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">前置任务（依赖）</label>

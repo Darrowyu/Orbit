@@ -20,7 +20,6 @@ import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProjectMemberModal } from './components/ProjectMemberModal';
 import { CalendarView } from './components/CalendarView';
 import { GanttChart } from './components/GanttChart';
-import { GlobalSearch } from './components/GlobalSearch';
 
 type SortOption = 'DEFAULT' | 'PRIORITY_DESC' | 'DATE_DESC';
 type ViewMode = 'kanban' | 'calendar' | 'gantt';
@@ -45,7 +44,6 @@ const App: React.FC = () => {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [showProjectDashboard, setShowProjectDashboard] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
@@ -185,33 +183,44 @@ const App: React.FC = () => {
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              {/* 项目信息栏 */}
-              {currentProject && (
-                <div className="bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: currentProject.color }} />
-                    <h2 className="font-semibold text-slate-800">{currentProject.name}</h2>
-                    <span className="text-sm text-slate-500">({filteredTasks.length} 任务)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* 视图切换 */}
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-                      <button onClick={() => setViewMode('kanban')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>看板</button>
-                      <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>日历</button>
-                      <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'gantt' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>甘特图</button>
-                    </div>
-                    <button
-                      onClick={() => setShowProjectDashboard(true)}
-                      className="px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                    >
-                      项目概览
-                    </button>
-                    <button onClick={() => setIsMemberModalOpen(true)} className="p-1.5 text-slate-400 hover:text-[#001C3D] hover:bg-slate-100 rounded-lg transition-colors" title="管理成员">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    </button>
-                  </div>
+              {/* 顶部工具栏 - 视图切换 */}
+              <div className="bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {currentProject ? (
+                    <>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: currentProject.color }} />
+                      <h2 className="font-semibold text-slate-800">{currentProject.name}</h2>
+                      <span className="text-sm text-slate-500">({filteredTasks.length} 任务)</span>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="font-semibold text-slate-800">所有任务</h2>
+                      <span className="text-sm text-slate-500">({filteredTasks.length} 任务)</span>
+                    </>
+                  )}
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  {/* 视图切换 */}
+                  <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                    <button onClick={() => setViewMode('kanban')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>看板</button>
+                    <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>日历</button>
+                    <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'gantt' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>甘特图</button>
+                  </div>
+                  {currentProject && (
+                    <>
+                      <button
+                        onClick={() => setShowProjectDashboard(true)}
+                        className="px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        项目概览
+                      </button>
+                      <button onClick={() => setIsMemberModalOpen(true)} className="p-1.5 text-slate-400 hover:text-[#001C3D] hover:bg-slate-100 rounded-lg transition-colors" title="管理成员">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
 
               {viewMode === 'kanban' && (
                 <>
@@ -300,8 +309,6 @@ const App: React.FC = () => {
         onDelete={handleDelete}
         onRestore={handleRestore}
       />
-
-      <GlobalSearch isOpen={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
     </div>
   );
 };

@@ -18,7 +18,6 @@ export const TeamWorkloadChart: React.FC = () => {
   if (loading) return <div className="h-[200px] flex items-center justify-center text-slate-400">加载中...</div>;
   if (data.length === 0) return <div className="h-[200px] flex items-center justify-center text-slate-400">暂无数据</div>;
 
-  const maxTotal = Math.max(...data.map(d => d.total), 1);
   const statusColors = { TODO: '#94a3b8', IN_PROGRESS: '#3b82f6', REVIEW: '#f59e0b', DONE: '#22c55e' };
 
   return (
