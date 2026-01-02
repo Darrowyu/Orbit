@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/taskStore';
 import { useTeamStore } from '../stores/teamStore';
 import { useAuthStore } from '../stores/authStore';
+import { useProjectStore } from '../stores/projectStore';
 import { TaskStatus, Priority } from '../types';
 import { Avatar, Badge } from '../components/ui';
+import { BurndownChart } from '../components/BurndownChart';
+import { TeamWorkloadChart } from '../components/TeamWorkloadChart';
 
 const StatCard: React.FC<{ label: string; value: number | string; trend?: string }> = ({ label, value, trend }) => (
     <div className="minimal-card p-6 animate-fade-in-up">
@@ -33,8 +36,18 @@ export const DashboardPage: React.FC = () => {
     const { user } = useAuthStore();
     const { tasks, fetchTasks } = useTaskStore();
     const { currentTeam, members } = useTeamStore();
+    const { projects } = useProjectStore();
+    const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
     useEffect(() => { if (user?.currentTeamId) fetchTasks(); }, [user?.currentTeamId, fetchTasks]);
+    useEffect(() => { if (projects.length > 0 && !selectedProjectId) setSelectedProjectId(projects[0].id); }, [projects, selectedProjectId]);
+
+    const dateRange = useMemo(() => {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 14);
+        return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    }, []);
 
     const stats = useMemo(() => {
         const myTasks = tasks.filter(t => t.assigneeId === user?.id);
@@ -144,8 +157,25 @@ export const DashboardPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* 报表区域 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    {selectedProjectId && (
+                        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white">
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
+                            <BurndownChart projectId={selectedProjectId} startDate={dateRange.start} endDate={dateRange.end} />
+                        </div>
+                    )}
+                    <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                        <TeamWorkloadChart />
+                    </div>
+                </div>
+
                 {/* 团队成员 */}
-                <div className="minimal-card p-6 mt-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                <div className="minimal-card p-6 mt-6 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-medium text-neutral-500">团队成员</h3>
                         <Badge variant="default" size="sm">{members.length} 人</Badge>

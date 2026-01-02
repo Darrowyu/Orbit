@@ -1,8 +1,9 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, TeamMember, Team } from '../types';
 import { NotificationBell } from './NotificationBell';
 import { Button, IconButton, Avatar, Input, Select } from './ui';
+import { GlobalSearch } from './GlobalSearch';
 
 interface HeaderProps {
   user: User;
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = memo(({
   sortOption, setSortOption, onNewTask, onTeamSettings, onLogout
 }) => {
   const navigate = useNavigate();
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-[var(--shadow-sm)]">
@@ -48,7 +50,7 @@ export const Header: React.FC<HeaderProps> = memo(({
         {/* Actions */}
         <div className="flex items-center gap-3 sm:gap-4">
           {/* Search */}
-          <div className="hidden lg:block w-48 xl:w-64">
+          <div className="hidden lg:flex items-center gap-2 w-48 xl:w-64">
             <Input 
               type="text" 
               placeholder="搜索任务..." 
@@ -57,7 +59,11 @@ export const Header: React.FC<HeaderProps> = memo(({
               size="sm"
               leftIcon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
             />
+            <IconButton onClick={() => setShowGlobalSearch(true)} title="全局搜索 (Ctrl+K)" className="text-slate-400 hover:text-[#001C3D] hover:bg-[#001C3D]/5">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </IconButton>
           </div>
+          <GlobalSearch isOpen={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
 
           {/* Filters */}
           <div className="w-[120px]">

@@ -2,6 +2,7 @@ import { memo, useEffect } from 'react';
 import { Project, ProjectStatus, TeamMember } from '../types';
 import { useProjectStore } from '../stores/projectStore';
 import { Card, Badge, Button, Avatar } from './ui';
+import { MilestoneList } from './MilestoneList';
 
 interface ProjectDashboardProps {
     project: Project;
@@ -135,6 +136,12 @@ export const ProjectDashboard = memo(function ProjectDashboard({ project, teamMe
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500" />审核中 {stats.byStatus.REVIEW}</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />已完成 {stats.byStatus.DONE}</span>
                     </div>
+                </div>
+
+                {/* 里程碑 */}
+                <div className="mb-6">
+                    <h3 className="text-sm font-medium text-slate-700 mb-3">项目里程碑</h3>
+                    <MilestoneList projectId={project.id} />
                 </div>
 
                 {/* 项目成员 */}

@@ -18,8 +18,12 @@ import { useProjectStore } from './stores/projectStore';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProjectMemberModal } from './components/ProjectMemberModal';
+import { CalendarView } from './components/CalendarView';
+import { GanttChart } from './components/GanttChart';
+import { GlobalSearch } from './components/GlobalSearch';
 
 type SortOption = 'DEFAULT' | 'PRIORITY_DESC' | 'DATE_DESC';
+type ViewMode = 'kanban' | 'calendar' | 'gantt';
 
 const App: React.FC = () => {
   const { user, checkAuth, logout, updateUser, isInitialized } = useAuthStore();
@@ -40,6 +44,8 @@ const App: React.FC = () => {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [showProjectDashboard, setShowProjectDashboard] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
@@ -188,6 +194,12 @@ const App: React.FC = () => {
                     <span className="text-sm text-slate-500">({filteredTasks.length} 任务)</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* 视图切换 */}
+                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                      <button onClick={() => setViewMode('kanban')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>看板</button>
+                      <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>日历</button>
+                      <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'gantt' ? 'bg-white text-[#001C3D] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>甘特图</button>
+                    </div>
                     <button
                       onClick={() => setShowProjectDashboard(true)}
                       className="px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
@@ -201,30 +213,45 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <FilterBar
-                members={members as User[]}
-                filterAssignee={filterAssignee}
-                setFilterAssignee={setFilterAssignee}
-                sortOption={sortOption}
-                setSortOption={(s) => setSortOption(s as SortOption)}
-                onNewTask={handleNewTask}
-              />
+              {viewMode === 'kanban' && (
+                <>
+                  <FilterBar
+                    members={members as User[]}
+                    filterAssignee={filterAssignee}
+                    setFilterAssignee={setFilterAssignee}
+                    sortOption={sortOption}
+                    setSortOption={(s) => setSortOption(s as SortOption)}
+                    onNewTask={handleNewTask}
+                  />
+                  <KanbanBoard
+                    tasks={filteredTasks}
+                    members={members as User[]}
+                    sortOption={sortOption}
+                    searchQuery={searchQuery}
+                    filterAssignee={filterAssignee}
+                    onMove={handleMove}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onArchive={handleArchive}
+                    onToggleSubtask={handleToggle}
+                    onAssignSubtask={handleAssign}
+                    onCreateFromSubtask={handleCreateFromSubtask}
+                    onShowArchived={handleShowArchived}
+                  />
+                </>
+              )}
 
-              <KanbanBoard
-                tasks={filteredTasks}
-                members={members as User[]}
-                sortOption={sortOption}
-                searchQuery={searchQuery}
-                filterAssignee={filterAssignee}
-                onMove={handleMove}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onArchive={handleArchive}
-                onToggleSubtask={handleToggle}
-                onAssignSubtask={handleAssign}
-                onCreateFromSubtask={handleCreateFromSubtask}
-                onShowArchived={handleShowArchived}
-              />
+              {viewMode === 'calendar' && (
+                <div className="flex-1 p-6 overflow-auto">
+                  <CalendarView tasks={filteredTasks} onTaskClick={handleEdit} onDateChange={(taskId, newDate) => updateTask(taskId, { dueDate: newDate })} />
+                </div>
+              )}
+
+              {viewMode === 'gantt' && (
+                <div className="flex-1 p-6 overflow-auto">
+                  <GanttChart tasks={filteredTasks} onTaskClick={handleEdit} />
+                </div>
+              )}
             </div>
           )}
         </MainContent>
@@ -273,6 +300,8 @@ const App: React.FC = () => {
         onDelete={handleDelete}
         onRestore={handleRestore}
       />
+
+      <GlobalSearch isOpen={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
     </div>
   );
 };
