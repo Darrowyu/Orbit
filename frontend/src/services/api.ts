@@ -131,6 +131,23 @@ export const adminApi = {
   setAdmin: (id: string, value: boolean) => api.post(`/admin/users/${id}/set-admin`, null, { params: { value } }),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   getLoginLogs: (userId?: string, page?: number) => api.get('/admin/login-logs', { params: { userId, page } }),
+  getTrends: (days?: number) => api.get('/admin/stats/trends', { params: { days } }),
+  getHealthIndicators: () => api.get('/admin/stats/health'),
+  getTeams: (query?: { page?: number; search?: string; sort?: string }) => api.get('/admin/teams', { params: query }),
+  getTeamDetail: (id: string) => api.get(`/admin/teams/${id}`),
+  transferOwnership: (id: string, newOwnerId: string) => api.post(`/admin/teams/${id}/transfer-ownership`, { newOwnerId }),
+  dissolveTeam: (id: string) => api.delete(`/admin/teams/${id}`),
+  getProjects: (query?: { page?: number; status?: string; teamId?: string; search?: string }) => api.get('/admin/projects', { params: query }),
+  getProjectDetail: (id: string) => api.get(`/admin/projects/${id}`),
+  archiveProject: (id: string) => api.post(`/admin/projects/${id}/archive`),
+  restoreProject: (id: string) => api.post(`/admin/projects/${id}/restore`),
+  getOverdueTasks: (page?: number) => api.get('/admin/tasks/overdue', { params: { page } }),
+  getTaskStats: () => api.get('/admin/tasks/stats'),
+  batchArchiveTasks: (taskIds: string[]) => api.post('/admin/tasks/batch-archive', { taskIds }),
+  getAuditLogs: (query?: { page?: number; startDate?: string; endDate?: string; action?: string; entityType?: string; userId?: string }) => api.get('/admin/audit-logs', { params: query }),
+  getSettings: () => api.get('/admin/settings'),
+  updateSetting: (key: string, value: string) => api.post('/admin/settings', { key, value }),
+  getStorageStats: () => api.get('/admin/storage/stats'),
 };
 
 export interface Comment {
