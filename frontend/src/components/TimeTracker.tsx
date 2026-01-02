@@ -20,17 +20,18 @@ const formatTime = (date: string): string => {
   return new Date(date).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 };
 
-export const TimeTracker: React.FC<TimeTrackerProps> = ({ taskId, taskTitle }) => {
+export const TimeTracker: React.FC<TimeTrackerProps> = (props) => {
+  const { taskId } = props;
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [running, setRunning] = useState<TimeEntry | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const intervalRef = useRef<NodeJS.Timer>();
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadData();
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { if (intervalRef.current !== null) window.clearInterval(intervalRef.current); };
   }, [taskId]);
 
   useEffect(() => {
@@ -38,10 +39,10 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({ taskId, taskTitle }) =
       const start = new Date(running.startTime).getTime();
       const updateElapsed = () => setElapsed(Math.floor((Date.now() - start) / 60000));
       updateElapsed();
-      intervalRef.current = setInterval(updateElapsed, 60000);
+      intervalRef.current = window.setInterval(updateElapsed, 60000);
     } else {
       setElapsed(0);
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
     }
   }, [running]);
 

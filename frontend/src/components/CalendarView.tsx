@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Task, TaskStatus, Priority } from '../types';
 import { IconButton } from './ui/IconButton';
-import { Badge } from './ui/Badge';
 
 interface CalendarViewProps {
   tasks: Task[];

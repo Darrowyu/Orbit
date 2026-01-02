@@ -114,7 +114,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) =>
             {tasksWithDates.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">暂无带截止日期的任务</div>
             ) : (
-              tasksWithDates.map((t, idx) => {
+              tasksWithDates.map((t) => {
                 const start = getPosition(t.startDate);
                 const end = getPosition(t.endDate);
                 const left = Math.max(0, start);
