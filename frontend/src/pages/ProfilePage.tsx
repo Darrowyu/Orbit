@@ -6,7 +6,16 @@ import { useDialog } from '../components/ConfirmDialog';
 import { AiConfigPanel } from '../components/AiConfigPanel';
 import { Button, Input, Avatar, Badge } from '../components/ui';
 
-const AVATARS = ['😊', '😎', '🤓', '🧐', '🤖', '👻', '🐱', '🐶', '🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🌟', '⭐', '🎯', '🎨', '🎮', '🎵', '💎', '🔮', '🌈', '☀️'];
+const AVATAR_CATEGORIES = [
+  { key: 'face', label: '表情', items: ['😊', '😎', '🤓', '🧐', '😄', '🥳', '😇', '🤩', '😏', '🥰', '😋', '🤗', '😴', '🤔', '🙃', '😜'] },
+  { key: 'animal', label: '动物', items: ['🐱', '🐶', '🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🐰', '🐻', '🐮', '🐷', '🐵', '🦄', '🐲', '🦋'] },
+  { key: 'food', label: '美食', items: ['🍕', '🍔', '🍟', '🌮', '🍣', '🍜', '🍩', '🍪', '🧁', '🍰', '🍦', '🍫', '🥐', '🍿', '🥤', '☕'] },
+  { key: 'sport', label: '运动', items: ['⚽', '🏀', '🎾', '🏐', '🎱', '🏓', '🏸', '⛳', '🎯', '🎳', '🏋️', '🚴', '🏄', '⛷️', '🏊', '🧘'] },
+  { key: 'nature', label: '自然', items: ['🌸', '🌺', '🌻', '🌹', '🌈', '☀️', '🌙', '⭐', '🌟', '❄️', '🔥', '💧', '🍀', '🌵', '🌴', '🍄'] },
+  { key: 'object', label: '物品', items: ['💎', '🔮', '🎨', '🎮', '🎵', '🎸', '🎹', '📷', '💡', '🔧', '🚀', '✈️', '🎁', '👑', '💰', '🏆'] },
+  { key: 'robot', label: '奇幻', items: ['🤖', '👻', '👽', '🎃', '💀', '👾', '🧙', '🧛', '🧜', '🧚', '🦸', '🦹', '🥷', '🧞', '🧟', '👹'] },
+  { key: 'work', label: '工作', items: ['👨‍💻', '👩‍💻', '👨‍💼', '👩‍💼', '👨‍🔬', '👩‍🔬', '👨‍🎨', '👩‍🎨', '👨‍🏫', '👩‍🏫', '👨‍⚕️', '👩‍⚕️', '👨‍🍳', '👩‍🍳', '👨‍🔧', '👩‍🔧'] },
+] as const;
 const COLORS = [
   { value: 'bg-blue-100 text-blue-700', label: '蓝' },
   { value: 'bg-pink-100 text-pink-700', label: '粉' },
@@ -36,6 +45,7 @@ export const ProfilePage: React.FC = () => {
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [pwdError, setPwdError] = useState('');
+  const [avatarCategory, setAvatarCategory] = useState<string>('face');
 
   const { alert } = useDialog();
   useEffect(() => { userApi.getMyTeams().then(({ data }) => setTeams(data)); }, []);
@@ -131,9 +141,14 @@ export const ProfilePage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-600 mb-3">头像</label>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {AVATARS.map((a) => (
-                    <button key={a} onClick={() => setAvatar(a)} className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${avatar === a ? 'ring-2 ring-neutral-900 ring-offset-1' : 'bg-neutral-50 hover:bg-neutral-100'}`}>{a}</button>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {AVATAR_CATEGORIES.map((cat) => (
+                    <button key={cat.key} onClick={() => setAvatarCategory(cat.key)} className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${avatarCategory === cat.key ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>{cat.label}</button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-3 p-3 bg-neutral-50 rounded-lg min-h-[88px]">
+                  {AVATAR_CATEGORIES.find(c => c.key === avatarCategory)?.items.map((a) => (
+                    <button key={a} onClick={() => setAvatar(a)} className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${avatar === a ? 'ring-2 ring-neutral-900 ring-offset-1 bg-white' : 'bg-white hover:bg-neutral-100'}`}>{a}</button>
                   ))}
                 </div>
                 <label className="inline-flex items-center gap-2 cursor-pointer px-3 py-1.5 bg-neutral-100 text-neutral-600 text-sm font-medium rounded-lg hover:bg-neutral-200 transition-colors">
@@ -167,7 +182,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex gap-2 max-w-sm">
                   <Input type="text" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())} placeholder="添加技能" size="sm" />
-                  <Button onClick={addSkill} disabled={!newSkill.trim()} variant="secondary" size="sm">添加</Button>
+                  <Button onClick={addSkill} disabled={!newSkill.trim()} variant="secondary" size="sm" className="whitespace-nowrap">添加</Button>
                 </div>
               </div>
 
