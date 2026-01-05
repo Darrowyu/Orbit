@@ -4,17 +4,17 @@ import { useAdminStore } from '../stores/adminStore';
 import { useAuthStore } from '../stores/authStore';
 import { useDialog } from '../components/ConfirmDialog';
 import { Button, Input, Avatar, Modal, ModalFooter, Select } from '../components/ui';
-import { TrendChart, HealthIndicators, AdminTeamList, AdminProjectList, AdminTaskMonitor, AdminAuditLog, AdminSettings } from '../components/admin';
+import { TrendChart, HealthIndicators, AdminTeamList, AdminProjectList, AdminTaskMonitor, AdminAuditLog, AdminLoginLog, AdminSettings } from '../components/admin';
 
 type TabKey = 'stats' | 'users' | 'teams' | 'projects' | 'tasks' | 'audit' | 'logs' | 'settings';
 
-const UserManagement = memo(({ users, user, total, isLoading, page, search, statusFilter, setPage, setSearch, setStatusFilter, handleToggleStatus, openPwdModal, handleSetAdmin, handleDelete }: { users: { id: string; name: string; email: string; avatar: string; color: string; isSuperAdmin: boolean; isActive: boolean; lastLoginAt: string | null; _count: { teamMembers: number } }[]; user: { id: string } | null; total: number; isLoading: boolean; page: number; search: string; statusFilter: string; setPage: (fn: (p: number) => number) => void; setSearch: (s: string) => void; setStatusFilter: (s: string) => void; handleToggleStatus: (id: string) => void; openPwdModal: (id: string, name: string) => void; handleSetAdmin: (id: string, current: boolean) => void; handleDelete: (id: string) => void }) => (
+const UserManagement = memo(({ users, user, total, loading, page, search, statusFilter, setPage, setSearch, setStatusFilter, handleToggleStatus, openPwdModal, handleSetAdmin, handleDelete }: { users: { id: string; name: string; email: string; avatar: string; color: string; isSuperAdmin: boolean; isActive: boolean; lastLoginAt: string | null; _count: { teamMembers: number } }[]; user: { id: string } | null; total: number; loading: boolean; page: number; search: string; statusFilter: string; setPage: (fn: (p: number) => number) => void; setSearch: (s: string) => void; setStatusFilter: (s: string) => void; handleToggleStatus: (id: string) => void; openPwdModal: (id: string, name: string) => void; handleSetAdmin: (id: string, current: boolean) => void; handleDelete: (id: string) => void }) => (
   <div className="minimal-card overflow-hidden">
     <div className="p-4 border-b border-neutral-100 flex gap-3">
       <div className="flex-1"><Input type="text" placeholder="搜索..." value={search} onChange={(e) => setSearch(e.target.value)} size="sm" /></div>
       <div className="w-28"><Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="sm" options={[{ value: '', label: '全部' }, { value: 'active', label: '活跃' }, { value: 'disabled', label: '禁用' }]} /></div>
     </div>
-    {isLoading ? <div className="text-center py-12 text-neutral-400">加载中...</div> : (
+    {loading ? <div className="text-center py-12 text-neutral-400">加载中...</div> : (
       <table className="w-full text-sm">
         <thead><tr className="text-left text-neutral-400 border-b border-neutral-100"><th className="p-4 font-medium">用户</th><th className="p-4 font-medium">团队</th><th className="p-4 font-medium">状态</th><th className="p-4 font-medium">最后登录</th><th className="p-4 font-medium text-center">操作</th></tr></thead>
         <tbody>
@@ -46,29 +46,11 @@ const UserManagement = memo(({ users, user, total, isLoading, page, search, stat
 ));
 UserManagement.displayName = 'UserManagement';
 
-const LoginLogs = memo(({ loginLogs }: { loginLogs: { id: string; ip: string | null; success: boolean; createdAt: string; user: { name: string; email: string } }[] }) => (
-  <div className="minimal-card overflow-hidden">
-    <table className="w-full text-sm">
-      <thead><tr className="text-left text-neutral-400 border-b border-neutral-100"><th className="p-4 font-medium">用户</th><th className="p-4 font-medium">IP</th><th className="p-4 font-medium">状态</th><th className="p-4 font-medium">时间</th></tr></thead>
-      <tbody>
-        {loginLogs.length === 0 ? <tr><td colSpan={4} className="p-12 text-center text-neutral-400">暂无记录</td></tr> : loginLogs.map((log) => (
-          <tr key={log.id} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-            <td className="p-4"><div className="font-medium text-neutral-900">{log.user.name}</div><div className="text-xs text-neutral-400">{log.user.email}</div></td>
-            <td className="p-4 text-neutral-500">{log.ip || '-'}</td>
-            <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs font-medium ${log.success ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{log.success ? '成功' : '失败'}</span></td>
-            <td className="p-4 text-neutral-400 text-xs">{new Date(log.createdAt).toLocaleString('zh-CN')}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-));
-LoginLogs.displayName = 'LoginLogs';
-
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { users, stats, loginLogs, total, isLoading, trends, health, fetchStats, fetchUsers, toggleUserStatus, resetPassword, setSuperAdmin, deleteUser, fetchLoginLogs, fetchTrends, fetchHealth } = useAdminStore();
+  const { users, stats, total, trends, health, fetchStats, fetchUsers, toggleUserStatus, resetPassword, setSuperAdmin, deleteUser, fetchTrends, fetchHealth } = useAdminStore();
+  const [usersLoading, setUsersLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>('stats');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -78,8 +60,8 @@ export const AdminPage: React.FC = () => {
   const [confirmPwd, setConfirmPwd] = useState('');
   const [pwdError, setPwdError] = useState('');
 
-  useEffect(() => { fetchStats(); fetchUsers(); fetchLoginLogs(); fetchTrends(); fetchHealth(); }, [fetchStats, fetchUsers, fetchLoginLogs, fetchTrends, fetchHealth]);
-  useEffect(() => { if (tab === 'users') fetchUsers({ page, search, status: statusFilter }); }, [page, search, statusFilter, tab, fetchUsers]);
+  useEffect(() => { fetchStats(); fetchUsers().finally(() => setUsersLoading(false)); fetchTrends(); fetchHealth(); }, [fetchStats, fetchUsers, fetchTrends, fetchHealth]);
+  useEffect(() => { if (tab === 'users') { setUsersLoading(true); fetchUsers({ page, search, status: statusFilter }).finally(() => setUsersLoading(false)); } }, [page, search, statusFilter, tab, fetchUsers]);
 
   const { confirm } = useDialog();
   const handleToggleStatus = useCallback(async (id: string) => { if (await confirm({ title: '切换状态', message: '确定要切换该用户状态吗？', type: 'warning' })) await toggleUserStatus(id); }, [confirm, toggleUserStatus]);
@@ -171,7 +153,7 @@ export const AdminPage: React.FC = () => {
         )}
 
         {/* 用户管理 */}
-        {tab === 'users' && <UserManagement users={users} user={user} total={total} isLoading={isLoading} page={page} search={search} statusFilter={statusFilter} setPage={setPage} setSearch={setSearch} setStatusFilter={setStatusFilter} handleToggleStatus={handleToggleStatus} openPwdModal={openPwdModal} handleSetAdmin={handleSetAdmin} handleDelete={handleDelete} />}
+        {tab === 'users' && <UserManagement users={users} user={user} total={total} loading={usersLoading} page={page} search={search} statusFilter={statusFilter} setPage={setPage} setSearch={setSearch} setStatusFilter={setStatusFilter} handleToggleStatus={handleToggleStatus} openPwdModal={openPwdModal} handleSetAdmin={handleSetAdmin} handleDelete={handleDelete} />}
 
         {/* 团队管理 */}
         {tab === 'teams' && <AdminTeamList />}
@@ -186,7 +168,7 @@ export const AdminPage: React.FC = () => {
         {tab === 'audit' && <AdminAuditLog />}
 
         {/* 登录日志 */}
-        {tab === 'logs' && <LoginLogs loginLogs={loginLogs} />}
+        {tab === 'logs' && <AdminLoginLog />}
 
         {/* 系统设置 */}
         {tab === 'settings' && <AdminSettings />}

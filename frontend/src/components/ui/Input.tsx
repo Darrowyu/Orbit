@@ -27,15 +27,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
       : 'border-slate-200 hover:border-slate-300 focus:border-[#001C3D] focus:ring-[#001C3D]/20';
 
+    const hasCustomWidth = className.includes('w-');
+    
     return (
-      <div className={className.includes('w-') ? '' : 'w-full'}>
+      <div className={hasCustomWidth ? className : 'w-full'}>
         {label && <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>}
         <div className="relative">
           {leftIcon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{leftIcon}</span>}
           <input
             ref={ref}
             id={inputId}
-            className={`${baseStyles} ${stateStyles} ${sizeStyles[size]} ${leftIcon ? 'pl-10' : ''} ${rightIcon ? 'pr-10' : ''} ${className}`}
+            className={`w-full ${baseStyles} ${stateStyles} ${sizeStyles[size]} ${leftIcon ? 'pl-10' : ''} ${rightIcon ? 'pr-10' : ''}`}
             {...props}
           />
           {rightIcon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{rightIcon}</span>}
