@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Task } from '../tasks/dto/task.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000'], credentials: true } })
 export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -10,7 +11,12 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private userTeams = new Map<string, string>();
 
-  constructor(private jwt: JwtService) { }
+  constructor(private jwt: JwtService, private prisma: PrismaService) { }
+
+  private async verifyTeamMember(userId: string, teamId: string): Promise<boolean> {
+    const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId } } });
+    return !!member;
+  }
 
   async handleConnection(client: Socket): Promise<void> {
     try {
@@ -20,6 +26,8 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.userId = payload.sub;
       const teamId = client.handshake.query.teamId as string;
       if (teamId) {
+        const isMember = await this.verifyTeamMember(payload.sub, teamId);
+        if (!isMember) { client.disconnect(); return; } // 非团队成员断开连接
         client.join(`team:${teamId}`);
         this.userTeams.set(client.id, teamId);
       }
@@ -33,7 +41,14 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join:team') // 允许动态切换团队
-  handleJoinTeam(client: Socket, teamId: string) {
+  async handleJoinTeam(client: Socket, teamId: string) {
+    const userId = client.data.userId;
+    if (!userId) return;
+    const isMember = await this.verifyTeamMember(userId, teamId);
+    if (!isMember) {
+      client.emit('error', { message: '您不是该团队成员' });
+      return;
+    }
     const oldTeamId = this.userTeams.get(client.id);
     if (oldTeamId) client.leave(`team:${oldTeamId}`);
     client.join(`team:${teamId}`);
