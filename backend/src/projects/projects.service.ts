@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, UpdateProjectMemberDto } from './dto/project.dto';
 import { ProjectEntity } from '../common/types';
@@ -7,6 +7,17 @@ import { NotificationsService } from '../notifications/notifications.service';
 @Injectable()
 export class ProjectsService {
     constructor(private prisma: PrismaService, private notifications: NotificationsService) { }
+
+    private async getProjectTaskStats(projectId: string) {
+        const stats = await this.prisma.task.groupBy({
+            by: ['status'],
+            where: { projectId, isArchived: false },
+            _count: { id: true }
+        });
+        const total = stats.reduce((sum, s) => sum + s._count.id, 0);
+        const incomplete = stats.filter(s => s.status !== 'DONE').reduce((sum, s) => sum + s._count.id, 0);
+        return { total, incomplete };
+    }
 
     async findAll(teamId: string, includeArchived = false) { // 获取团队下所有项目
         const projects = await this.prisma.project.findMany({
@@ -45,6 +56,12 @@ export class ProjectsService {
 
     async update(id: string, dto: UpdateProjectDto, operatorId: string) { // 更新项目
         await this.checkPermission(id, operatorId, ['owner', 'admin']);
+        if (dto.status === 'COMPLETED') { // 项目标记完成时检查任务状态
+            const taskStats = await this.getProjectTaskStats(id);
+            if (taskStats.incomplete > 0) {
+                throw new BadRequestException(`无法标记项目为已完成：还有 ${taskStats.incomplete} 个任务未完成`);
+            }
+        }
         const { startDate, endDate, ...data } = dto;
         const project = await this.prisma.project.update({
             where: { id },
@@ -58,8 +75,15 @@ export class ProjectsService {
         return this.format(project);
     }
 
-    async archive(id: string, operatorId: string) { // 归档项目
+    async archive(id: string, operatorId: string, options?: { archiveTasks?: boolean }) { // 归档项目
         await this.checkPermission(id, operatorId, ['owner']);
+        const taskStats = await this.getProjectTaskStats(id);
+        if (taskStats.total > 0 && !options?.archiveTasks) {
+            return { needConfirm: true, taskCount: taskStats.total, incompleteCount: taskStats.incomplete, message: `该项目下有 ${taskStats.total} 个任务（${taskStats.incomplete} 个未完成），是否同时归档这些任务？` };
+        }
+        if (options?.archiveTasks) { // 同步归档项目下的所有任务
+            await this.prisma.task.updateMany({ where: { projectId: id, isArchived: false }, data: { isArchived: true, archivedAt: new Date() } });
+        }
         const project = await this.prisma.project.update({
             where: { id },
             data: { isArchived: true, archivedAt: new Date(), status: 'ARCHIVED' },
@@ -78,8 +102,12 @@ export class ProjectsService {
         return this.format(project);
     }
 
-    async remove(id: string, operatorId: string) { // 删除项目
+    async remove(id: string, operatorId: string, options?: { force?: boolean }) { // 删除项目
         await this.checkPermission(id, operatorId, ['owner']);
+        const taskStats = await this.getProjectTaskStats(id);
+        if (taskStats.total > 0 && !options?.force) {
+            return { needConfirm: true, taskCount: taskStats.total, incompleteCount: taskStats.incomplete, message: `该项目下有 ${taskStats.total} 个任务，删除项目将解除这些任务与项目的关联，是否继续？` };
+        }
         await this.prisma.project.delete({ where: { id } });
         return { success: true };
     }

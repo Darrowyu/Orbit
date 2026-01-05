@@ -23,6 +23,24 @@ export class TasksService {
     return { valid: true };
   }
 
+  private async validateProjectAndMilestone(projectId?: string, milestoneId?: string, teamId?: string, assigneeId?: string): Promise<void> {
+    if (projectId) {
+      const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { teamId: true, isArchived: true } });
+      if (!project) throw new BadRequestException('指定的项目不存在');
+      if (teamId && project.teamId !== teamId) throw new BadRequestException('任务只能关联到同一团队的项目');
+      if (project.isArchived) throw new BadRequestException('无法将任务关联到已归档的项目');
+      if (assigneeId) { // 验证 assignee 是项目成员
+        const isMember = await this.prisma.projectMember.findUnique({ where: { userId_projectId: { userId: assigneeId, projectId } } });
+        if (!isMember) throw new BadRequestException('任务负责人必须是项目成员');
+      }
+    }
+    if (milestoneId) {
+      const milestone = await this.prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
+      if (!milestone) throw new BadRequestException('指定的里程碑不存在');
+      if (projectId && milestone.projectId !== projectId) throw new BadRequestException('里程碑必须属于任务所在的项目');
+    }
+  }
+
   private async detectCircularDependency(taskId: string, newDependsOn: string[], teamId: string): Promise<{ hasCircle: boolean; path?: string[] }> {
     if (!newDependsOn?.length) return { hasCircle: false };
     const allTasks = await this.prisma.task.findMany({
@@ -100,6 +118,7 @@ export class TasksService {
 
   async create(dto: CreateTaskDto, teamId: string, operatorId: string) {
     const { subtasks, dueDate, ...data } = dto;
+    await this.validateProjectAndMilestone(dto.projectId, (dto as any).milestoneId, teamId, dto.assigneeId);
     if (dto.dependsOn?.length) {
       const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
       if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
@@ -131,6 +150,10 @@ export class TasksService {
     if (dto.dependsOn) {
       const circleCheck = await this.detectCircularDependency(id, dto.dependsOn, oldTask.teamId);
       if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
+    }
+    const targetProjectId = dto.projectId !== undefined ? dto.projectId : oldTask.projectId;
+    if (dto.projectId !== undefined || dto.assigneeId || (dto as any).milestoneId) {
+      await this.validateProjectAndMilestone(targetProjectId || undefined, (dto as any).milestoneId, oldTask.teamId, dto.assigneeId);
     }
     const { subtasks, dueDate, ...data } = dto;
     if (subtasks) {
