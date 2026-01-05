@@ -58,6 +58,10 @@ export class LabelsService {
   async setTaskLabels(taskId: string, labelIds: string[], teamId: string) {
     const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
     if (!task) throw new NotFoundException('任务不存在');
+    if (labelIds.length > 0) { // 验证所有 labelIds 都属于当前团队
+      const validLabels = await this.prisma.label.findMany({ where: { id: { in: labelIds }, teamId } });
+      if (validLabels.length !== labelIds.length) throw new NotFoundException('部分标签不存在或不属于当前团队');
+    }
     await this.prisma.taskLabel.deleteMany({ where: { taskId } });
     if (labelIds.length > 0) {
       await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId, labelId })) });

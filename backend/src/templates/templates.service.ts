@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateTemplateDto {
@@ -40,9 +40,13 @@ export class TemplatesService {
     return { ...t, subtasks: JSON.parse(t.subtasks as string), labelIds: JSON.parse(t.labelIds as string) };
   }
 
-  async update(id: string, dto: Partial<CreateTemplateDto>, teamId: string) {
+  async update(id: string, dto: Partial<CreateTemplateDto>, teamId: string, userId: string) {
     const t = await this.prisma.taskTemplate.findFirst({ where: { id, teamId } });
     if (!t) throw new NotFoundException('模板不存在');
+    if (t.createdBy !== userId) {
+      const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId } } });
+      if (!member || !['owner', 'admin'].includes(member.role)) throw new ForbiddenException('只有创建者或管理员可修改模板');
+    }
     return this.prisma.taskTemplate.update({
       where: { id },
       data: {
@@ -53,9 +57,13 @@ export class TemplatesService {
     });
   }
 
-  async delete(id: string, teamId: string) {
+  async delete(id: string, teamId: string, userId: string) {
     const t = await this.prisma.taskTemplate.findFirst({ where: { id, teamId } });
     if (!t) throw new NotFoundException('模板不存在');
+    if (t.createdBy !== userId) {
+      const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId } } });
+      if (!member || !['owner', 'admin'].includes(member.role)) throw new ForbiddenException('只有创建者或管理员可删除模板');
+    }
     return this.prisma.taskTemplate.delete({ where: { id } });
   }
 }

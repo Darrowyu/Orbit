@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMilestoneDto, UpdateMilestoneDto } from './dto/milestone.dto';
 
@@ -42,8 +42,11 @@ export class MilestonesService {
   }
 
   async delete(id: string, teamId: string) {
-    const ms = await this.prisma.milestone.findUnique({ where: { id }, include: { project: true } });
+    const ms = await this.prisma.milestone.findUnique({ where: { id }, include: { project: true, _count: { select: { tasks: true } } } });
     if (!ms || ms.project.teamId !== teamId) throw new NotFoundException('里程碑不存在');
+    if (ms._count.tasks > 0) { // 删除前清理关联任务的 milestoneId
+      await this.prisma.task.updateMany({ where: { milestoneId: id }, data: { milestoneId: null } });
+    }
     return this.prisma.milestone.delete({ where: { id } });
   }
 
@@ -54,7 +57,8 @@ export class MilestonesService {
     ]);
     if (!ms || ms.project.teamId !== teamId) throw new NotFoundException('里程碑不存在');
     if (!task) throw new NotFoundException('任务不存在');
-    return this.prisma.task.update({ where: { id: taskId }, data: { milestoneId } });
+    if (task.projectId && task.projectId !== ms.projectId) throw new BadRequestException('任务所属项目与里程碑不一致');
+    return this.prisma.task.update({ where: { id: taskId }, data: { milestoneId, projectId: ms.projectId } }); // 自动关联项目
   }
 
   async removeTask(taskId: string, teamId: string) {

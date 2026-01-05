@@ -23,13 +23,13 @@ export class TimeEntriesController {
   }
 
   @Get('task/:taskId')
-  getByTask(@Param('taskId') taskId: string) {
-    return this.service.getByTask(taskId);
+  getByTask(@Param('taskId') taskId: string, @Req() req) {
+    return this.service.getByTask(taskId, req.user.currentTeamId);
   }
 
   @Get('task/:taskId/total')
-  getTotalByTask(@Param('taskId') taskId: string) {
-    return this.service.getTotalByTask(taskId);
+  getTotalByTask(@Param('taskId') taskId: string, @Req() req) {
+    return this.service.getTotalByTask(taskId, req.user.currentTeamId);
   }
 
   @Get('my')
