@@ -8,8 +8,8 @@ export class CommentsController {
   constructor(private comments: CommentsService) {}
 
   @Get()
-  findAll(@Param('taskId') taskId: string) {
-    return this.comments.findByTask(taskId);
+  findAll(@Param('taskId') taskId: string, @Request() req: { user: { sub: string } }) {
+    return this.comments.findByTask(taskId, req.user.sub);
   }
 
   @Post()

@@ -10,7 +10,13 @@ export class CommentsService {
 
   constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
-  async findByTask(taskId: string) {
+  async findByTask(taskId: string, userId?: string) {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { teamId: true } });
+    if (!task) throw new NotFoundException('任务不存在');
+    if (userId) { // 验证用户是否为团队成员
+      const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+      if (!member) throw new ForbiddenException('无权查看此任务的评论');
+    }
     return this.prisma.comment.findMany({
       where: { taskId },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },

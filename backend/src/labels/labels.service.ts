@@ -44,13 +44,17 @@ export class LabelsService {
     return this.prisma.taskLabel.create({ data: { taskId, labelId } });
   }
 
-  async removeFromTask(taskId: string, labelId: string) {
+  async removeFromTask(taskId: string, labelId: string, teamId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
+    if (!task) throw new NotFoundException('任务不存在');
     const tl = await this.prisma.taskLabel.findUnique({ where: { taskId_labelId: { taskId, labelId } } });
     if (!tl) throw new NotFoundException('任务标签关联不存在');
     return this.prisma.taskLabel.delete({ where: { taskId_labelId: { taskId, labelId } } });
   }
 
-  async getTaskLabels(taskId: string) {
+  async getTaskLabels(taskId: string, teamId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
+    if (!task) throw new NotFoundException('任务不存在');
     const tls = await this.prisma.taskLabel.findMany({ where: { taskId }, include: { label: true } });
     return tls.map(tl => tl.label);
   }
@@ -66,6 +70,6 @@ export class LabelsService {
     if (labelIds.length > 0) {
       await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId, labelId })) });
     }
-    return this.getTaskLabels(taskId);
+    return this.getTaskLabels(taskId, teamId);
   }
 }

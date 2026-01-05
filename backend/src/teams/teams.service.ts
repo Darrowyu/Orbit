@@ -51,9 +51,16 @@ export class TeamsService {
     return this.findOne(teamId);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string) {
     const team = await this.prisma.team.findUnique({ where: { id }, include: { members: { include: { user: true } }, owner: true } });
     if (!team) throw new NotFoundException('团队不存在');
+    if (userId) { // 非团队成员脱敏邀请码和邀请链接
+      const isMember = team.members.some(m => m.userId === userId);
+      if (!isMember) {
+        const formatted = this.formatTeam(team);
+        return { ...formatted, code: '******', inviteLink: '******' };
+      }
+    }
     return this.formatTeam(team);
   }
 

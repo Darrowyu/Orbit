@@ -132,13 +132,17 @@ export class TasksController {
   async batchAssign(@Body() body: { ids: string[]; assigneeId: string }, @Request() req) {
     const userId = req.user.sub;
     return this.prisma.$transaction(async (tx) => {
-      const results = { success: 0, failed: 0 };
+      const results = { success: 0, failed: 0, errors: [] as string[] };
       for (const id of body.ids) {
         try {
           const task = await tx.task.findUnique({ where: { id }, select: { teamId: true } });
-          if (!task) { results.failed++; continue; }
+          if (!task) { results.failed++; results.errors.push(`${id}: 任务不存在`); continue; }
           const member = await tx.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
-          if (!member) { results.failed++; continue; }
+          if (!member) { results.failed++; results.errors.push(`${id}: 无权限`); continue; }
+          if (body.assigneeId) { // 验证 assignee 是否为团队成员
+            const assigneeMember = await tx.teamMember.findUnique({ where: { userId_teamId: { userId: body.assigneeId, teamId: task.teamId } } });
+            if (!assigneeMember) { results.failed++; results.errors.push(`${id}: 负责人不是团队成员`); continue; }
+          }
           await tx.task.update({ where: { id }, data: { assigneeId: body.assigneeId } });
           results.success++;
         } catch { results.failed++; }

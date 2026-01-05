@@ -50,9 +50,9 @@ export class AuditService {
     });
   }
 
-  async getByEntity(entityType: EntityType, entityId: string) {
+  async getByEntity(entityType: EntityType, entityId: string, teamId?: string) {
     return this.prisma.auditLog.findMany({
-      where: { entityType, entityId },
+      where: { entityType, entityId, ...(teamId && { teamId }) },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },
       orderBy: { createdAt: 'desc' },
     });

@@ -16,7 +16,9 @@ export class AuditController {
   }
 
   @Get('entity/:type/:id')
-  getEntityLogs(@Param('type') type: string, @Param('id') id: string) {
-    return this.audit.getByEntity(type.toUpperCase() as EntityType, id);
+  async getEntityLogs(@Param('type') type: string, @Param('id') id: string, @Request() req: { user: { sub: string } }) {
+    const user = await this.prisma.user.findUnique({ where: { id: req.user.sub } });
+    if (!user?.currentTeamId) return [];
+    return this.audit.getByEntity(type.toUpperCase() as EntityType, id, user.currentTeamId);
   }
 }

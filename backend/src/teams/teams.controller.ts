@@ -21,7 +21,7 @@ export class TeamsController {
   getMyTeams(@Request() req) { return this.teams.getUserTeams(req.user.sub); }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.teams.findOne(id); }
+  findOne(@Param('id') id: string, @Request() req) { return this.teams.findOne(id, req.user.sub); }
 
   @Post(':id/switch')
   switchTeam(@Param('id') id: string, @Request() req) { return this.teams.switchTeam(id, req.user.sub); }
