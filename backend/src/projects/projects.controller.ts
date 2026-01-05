@@ -45,9 +45,9 @@ export class ProjectsController {
     }
 
     @Post(':id/archive')
-    async archive(@Param('id') id: string, @Req() req) { // 归档项目
+    async archive(@Param('id') id: string, @Body() body: { archiveTasks?: boolean }, @Req() req) { // 归档项目
         const { userId } = await this.getUserInfo(req);
-        return this.projectsService.archive(id, userId);
+        return this.projectsService.archive(id, userId, { archiveTasks: body?.archiveTasks });
     }
 
     @Post(':id/restore')
@@ -57,9 +57,9 @@ export class ProjectsController {
     }
 
     @Delete(':id')
-    async remove(@Param('id') id: string, @Req() req) { // 删除项目
+    async remove(@Param('id') id: string, @Query('force') force: string, @Req() req) { // 删除项目
         const { userId } = await this.getUserInfo(req);
-        return this.projectsService.remove(id, userId);
+        return this.projectsService.remove(id, userId, { force: force === 'true' });
     }
 
     @Post(':id/members')
