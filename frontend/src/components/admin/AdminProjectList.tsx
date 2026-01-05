@@ -20,7 +20,8 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 };
 
 export const AdminProjectList: React.FC = memo(() => {
-  const { projects, projectsTotal, teams, isLoading, fetchProjects, fetchTeams, archiveProject, restoreProject } = useAdminStore();
+  const { projects, projectsTotal, teams, fetchProjects, fetchTeams, archiveProject, restoreProject } = useAdminStore();
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [teamId, setTeamId] = useState('');
@@ -30,7 +31,7 @@ export const AdminProjectList: React.FC = memo(() => {
   const { confirm } = useDialog();
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
-  useEffect(() => { fetchProjects({ page, status, teamId, search }); }, [page, status, teamId, search, fetchProjects]);
+  useEffect(() => { setLoading(true); fetchProjects({ page, status, teamId, search }).finally(() => setLoading(false)); }, [page, status, teamId, search, fetchProjects]);
 
   const handleViewDetail = async (id: string) => {
     setDetailModal(id);
@@ -66,7 +67,7 @@ export const AdminProjectList: React.FC = memo(() => {
       </div>
 
       <div className="minimal-card overflow-hidden">
-        {isLoading ? (
+        {loading ? (
           <div className="text-center py-12 text-neutral-400">加载中...</div>
         ) : (
           <table className="w-full text-sm">

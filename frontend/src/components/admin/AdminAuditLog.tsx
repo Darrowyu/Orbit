@@ -38,7 +38,8 @@ const ENTITY_OPTIONS = [
 ];
 
 export const AdminAuditLog: React.FC = memo(() => {
-  const { auditLogs, auditTotal, isLoading, fetchAuditLogs, users, fetchUsers } = useAdminStore();
+  const { auditLogs, auditTotal, fetchAuditLogs, users, fetchUsers } = useAdminStore();
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
   const [entityType, setEntityType] = useState('');
@@ -48,7 +49,7 @@ export const AdminAuditLog: React.FC = memo(() => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { fetchAuditLogs({ page, action, entityType, userId, startDate, endDate }); }, [page, action, entityType, userId, startDate, endDate, fetchAuditLogs]);
+  useEffect(() => { setLoading(true); fetchAuditLogs({ page, action, entityType, userId, startDate, endDate }).finally(() => setLoading(false)); }, [page, action, entityType, userId, startDate, endDate, fetchAuditLogs]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -84,7 +85,7 @@ export const AdminAuditLog: React.FC = memo(() => {
       </div>
 
       <div className="minimal-card overflow-hidden">
-        {isLoading ? (
+        {loading ? (
           <div className="text-center py-12 text-neutral-400">加载中...</div>
         ) : auditLogs.length === 0 ? (
           <div className="text-center py-12 text-neutral-400">暂无记录</div>

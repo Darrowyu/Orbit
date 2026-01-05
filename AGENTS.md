@@ -230,7 +230,7 @@
 | 触发场景 | Skill 名称 | 说明 |
 |---------|-----------|------|
 | **声称工作完成、修复或通过前** | `superpowers-verification` | 必须运行验证命令并确认输出后才能做任何成功声明 |
-| **自己完成开发，需要自查时** | `superpowers-code-review` | 自查代码质量，验证工作是否满足需求 |
+| **完成任务、实现主要功能或合并前** | `superpowers-code-review` | 请求代码审查，验证工作是否满足需求 |
 | **实现完成、所有测试通过后** | `superpowers-finishing-branch` | 指导如何整合工作 - 合并、PR或清理 |
 
 ### 项目操作 Skills
@@ -252,21 +252,42 @@
 | **审查他人代码、PR review、外部代码评审时** | `code-review` | 按检查清单进行全面代码审查 |
 | **审查 TypeScript/JavaScript 代码时**（可与code-review组合） | `typescript-review` | 检查类型安全、React 模式、错误处理、命名规范 |
 
-> 💡 **code-review vs superpowers-code-review 区别**：
-> - `code-review`：审查**他人**代码，用于 PR review、外部代码评审
-> - `superpowers-code-review`：**自查**代码，开发完成后自我审查
+> 💡 **代码审查类 - 选择指南**：
+>
+> | 场景 | 使用 Skill |
+> |------|-----------|
+> | 审查**他人**提交的PR | `code-review` |
+> | **自己**完成开发后自查 | `superpowers-code-review` |
+> | 需要检查TS/JS类型安全 | `typescript-review`（可组合） |
+> | PR包含TS/JS代码 | `code-review` + `typescript-review` |
 
 ### 前端开发 Skills
 
 | 触发场景 | Skill 名称 | 说明 |
 |---------|-----------|------|
-| **构建完整页面、应用布局、多组件协作时** | `frontend-design` | 页面级设计，关注整体布局、路由、状态流转 |
-| **创建单个可复用组件时**（Button、Modal、Card等） | `component-development` | 组件级开发，关注 Props 设计、复用性、测试 |
+| **新建页面**（新路由、新入口） | `frontend-design` | 页面级设计，关注整体布局、路由、状态流转 |
+| **重构页面布局**（大范围调整结构） | `frontend-design` | 重新设计页面架构和组件组织 |
+| **新建组件**（可复用的独立组件） | `component-development` | 组件设计模式、类型系统、性能优化、可复用性 |
+| **重构组件**（组件内部大改动） | `component-development` | 优化组件架构、拆分逻辑、提升性能 |
 | **测试前端功能、调试 UI 行为、截图时** | `webapp-testing` | 使用 Playwright 进行 Web 应用测试 |
 
-> 💡 **frontend-design vs component-development 区别**：
-> - `frontend-design`：**页面级**，关注布局、路由、多组件协作、状态管理
-> - `component-development`：**组件级**，关注单个组件的 Props、复用性、独立测试
+> 💡 **前端开发类 - 选择指南**：
+>
+> | 场景 | 使用 Skill | 说明 |
+> |------|-----------|------|
+> | 新建完整页面（新路由） | `frontend-design` | 需要设计页面结构和状态管理 |
+> | 重构/优化页面整体布局 | `frontend-design` | 涉及多组件重新组织 |
+> | 新建独立可复用组件 | `component-development` | 需要设计组件API和内部架构 |
+> | 重构/优化单个组件 | `component-development` | 组件内部逻辑大改动 |
+> | 页面包含多个新组件 | `frontend-design` → `component-development`(多次) | 先设计页面，再逐个实现组件 |
+> | 测试前端功能/UI调试 | `webapp-testing` | E2E测试和视觉回归 |
+>
+> **不需要调用 Skill 的情况**（直接修改代码）：
+> - 修复样式bug（颜色、间距、对齐）
+> - 添加/修改少量字段
+> - 简单的文案修改
+> - 小范围功能调整（不涉及架构变更）
+> - 删除未使用的代码
 
 ### 后端与数据库 Skills
 
@@ -279,9 +300,15 @@
 | **调试慢查询、设计索引、优化性能时** | `sql-optimization-patterns` | SQL 查询优化和 EXPLAIN 分析 |
 | **构建长期运行流程、分布式事务、后台任务时** | `workflow-orchestration-patterns` | 工作流编排、Saga 模式、状态机 |
 
-> 💡 **db-migrate vs database-migration 区别**：
-> - `db-migrate`：**Prisma专用**，本项目日常 schema 修改后的迁移操作
-> - `database-migration`：**通用策略**，跨ORM、零停机、复杂数据转换场景
+> 💡 **数据库类 - 选择指南**：
+>
+> | 场景 | 使用 Skill |
+> |------|-----------|
+> | 本项目Prisma schema修改 | `db-migrate` |
+> | 跨ORM迁移/零停机部署/数据转换 | `database-migration` |
+> | **新建**表/schema设计 | `postgresql-table-design` |
+> | **已有**查询性能优化/慢查询 | `sql-optimization-patterns` |
+> | 新表需要设计索引 | `postgresql-table-design`（已包含索引） |
 
 ### 数据与报表 Skills
 

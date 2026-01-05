@@ -17,12 +17,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export const AdminTaskMonitor: React.FC = memo(() => {
-  const { overdueTasks, overdueTotal, taskStats, isLoading, fetchOverdueTasks, fetchTaskStats, batchArchiveTasks } = useAdminStore();
+  const { overdueTasks, overdueTotal, taskStats, fetchOverdueTasks, fetchTaskStats, batchArchiveTasks } = useAdminStore();
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const { confirm } = useDialog();
 
-  useEffect(() => { fetchOverdueTasks(page); fetchTaskStats(); }, [page, fetchOverdueTasks, fetchTaskStats]);
+  useEffect(() => { setLoading(true); Promise.all([fetchOverdueTasks(page), fetchTaskStats()]).finally(() => setLoading(false)); }, [page, fetchOverdueTasks, fetchTaskStats]);
 
   const handleSelectAll = () => {
     if (selected.length === overdueTasks.length) setSelected([]);
@@ -93,7 +94,7 @@ export const AdminTaskMonitor: React.FC = memo(() => {
             <Button size="sm" variant="outline" onClick={handleBatchArchive}>归档选中 ({selected.length})</Button>
           )}
         </div>
-        {isLoading ? (
+        {loading ? (
           <div className="text-center py-12 text-neutral-400">加载中...</div>
         ) : overdueTasks.length === 0 ? (
           <div className="text-center py-12 text-neutral-400">暂无逾期任务</div>
