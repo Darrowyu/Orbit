@@ -84,26 +84,26 @@ export const AdminSettings: React.FC = memo(() => {
       {SETTING_GROUPS.map((group) => (
         <div key={group.title} className="minimal-card p-5">
           <h3 className="text-sm font-medium text-neutral-500 mb-4">{group.title}</h3>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {group.items.map((item) => (
-              <div key={item.key} className="flex items-start gap-4">
-                <div className="w-32 shrink-0">
+              <div key={item.key} className="grid grid-cols-[140px_1fr_auto] gap-4 items-center">
+                <div>
                   <div className="text-sm font-medium text-neutral-700">{item.label}</div>
-                  {item.desc && <div className="text-xs text-neutral-400 mt-0.5">{item.desc}</div>}
+                  {item.desc && <div className="text-xs text-neutral-400 mt-0.5 leading-tight">{item.desc}</div>}
                 </div>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   {item.type === 'select' ? (
-                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options]} className="w-32" />
+                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options]} className="w-40" />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <Input type={item.type} value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" className="w-24" />
-                      {item.unit && <span className="text-sm text-neutral-400">{item.unit}</span>}
-                    </div>
+                    <>
+                      <Input type={item.type} value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" className="w-32" />
+                      {item.unit && <span className="text-sm text-neutral-400 shrink-0">{item.unit}</span>}
+                    </>
                   )}
-                  <Button size="xs" variant="ghost" onClick={() => handleSave(item.key)} disabled={saving === item.key || localSettings[item.key] === settings[item.key]}>
-                    {saving === item.key ? '保存中...' : '保存'}
-                  </Button>
                 </div>
+                <Button size="xs" variant="ghost" onClick={() => handleSave(item.key)} disabled={saving === item.key || localSettings[item.key] === settings[item.key]}>
+                  {saving === item.key ? '...' : '保存'}
+                </Button>
               </div>
             ))}
           </div>
