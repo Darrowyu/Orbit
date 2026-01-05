@@ -14,6 +14,10 @@ export class UsersController {
   async getTeam(@Request() req, @Query('teamId') teamId?: string) {
     const tid = teamId || (await this.prisma.user.findUnique({ where: { id: req.user.sub } }))?.currentTeamId;
     if (!tid) throw new ForbiddenException('请先加入或创建团队');
+    if (teamId) { // 验证用户是否属于指定团队
+      const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: req.user.id, teamId } } });
+      if (!member) throw new ForbiddenException('您不是该团队成员');
+    }
     return this.users.getTeamMembers(tid);
   }
 

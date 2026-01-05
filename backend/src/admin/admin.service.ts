@@ -49,7 +49,9 @@ export class AdminService {
   async resetPassword(id: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('用户不存在');
-    if (!newPassword || newPassword.length < 6) throw new ForbiddenException('密码至少6位');
+    if (!newPassword || newPassword.length < 8) throw new ForbiddenException('密码长度至少8位');
+    if (!/[A-Za-z]/.test(newPassword)) throw new ForbiddenException('密码必须包含字母');
+    if (!/[0-9]/.test(newPassword)) throw new ForbiddenException('密码必须包含数字');
     await this.prisma.user.update({ where: { id }, data: { password: await bcrypt.hash(newPassword, 10) } });
     return { success: true };
   }
@@ -63,9 +65,11 @@ export class AdminService {
 
   async deleteUser(id: string, adminId: string) {
     if (id === adminId) throw new ForbiddenException('不能删除自己');
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({ where: { id }, include: { ownedTeams: true, ownedProjects: true } });
     if (!user) throw new NotFoundException('用户不存在');
     if (user.isSuperAdmin) throw new ForbiddenException('不能删除超级管理员');
+    if (user.ownedTeams.length > 0) throw new ForbiddenException(`该用户是 ${user.ownedTeams.length} 个团队的所有者，请先转让所有权`);
+    if (user.ownedProjects.length > 0) throw new ForbiddenException(`该用户是 ${user.ownedProjects.length} 个项目的所有者，请先转让所有权`);
     await this.prisma.user.delete({ where: { id } });
     return { success: true };
   }
