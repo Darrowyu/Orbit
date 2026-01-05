@@ -3,11 +3,19 @@ import { Task, TaskStatus } from '../types';
 import { taskApi } from '../services/api';
 import { emitTaskUpdate, emitTaskDelete } from '../services/socket';
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 interface TaskStore {
   tasks: Task[];
   archivedTasks: Task[];
   isLoading: boolean;
-  fetchTasks: () => Promise<void>;
+  pagination: Pagination | null;
+  fetchTasks: (page?: number, limit?: number) => Promise<void>;
   fetchArchivedTasks: () => Promise<void>;
   addTask: (task: Task) => void;
   createTask: (data: Partial<Task>) => Promise<Task>;
@@ -26,12 +34,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   archivedTasks: [],
   isLoading: false,
+  pagination: null,
 
-  fetchTasks: async () => {
+  fetchTasks: async (page = 1, limit = 100) => {
     set({ isLoading: true });
     try {
-      const { data } = await taskApi.getAll();
-      set({ tasks: data, isLoading: false });
+      const { data } = await taskApi.getAll({ page, limit });
+      set({ tasks: data.data, pagination: data.pagination, isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -53,31 +62,55 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   updateTask: async (id, data) => {
-    const { data: updated } = await taskApi.update(id, data);
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
-    emitTaskUpdate(updated);
+    const previousTasks = get().tasks;
+    const task = previousTasks.find(t => t.id === id);
+    if (!task) return;
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...data } : t)) })); // 乐观更新
+    try {
+      const { data: updated } = await taskApi.update(id, data);
+      set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
+      emitTaskUpdate(updated);
+    } catch (error) {
+      set({ tasks: previousTasks }); // 回滚
+      throw error;
+    }
   },
 
   updateTaskLocal: (task) => set((s) => ({ tasks: s.tasks.map((t) => (t.id === task.id ? task : t)) })),
 
   deleteTask: async (id) => {
-    await taskApi.delete(id);
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
-    emitTaskDelete(id);
+    const previousTasks = get().tasks;
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })); // 乐观删除
+    try {
+      await taskApi.delete(id);
+      emitTaskDelete(id);
+    } catch (error) {
+      set({ tasks: previousTasks }); // 回滚
+      throw error;
+    }
   },
 
   removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
 
-  moveTask: async (id, status) => { // 移动任务并校验依赖
-    const task = get().tasks.find((t) => t.id === id);
-    if (!task) return { success: false, error: '' };
+  moveTask: async (id, status) => {
+    const previousTasks = get().tasks;
+    const task = previousTasks.find((t) => t.id === id);
+    if (!task) return { success: false, error: '任务不存在' };
     const restricted = [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.DONE];
     if (restricted.includes(status) && task.dependsOn?.length) {
       const incomplete = get().tasks.filter((t) => task.dependsOn.includes(t.id) && t.status !== TaskStatus.DONE);
       if (incomplete.length) return { success: false, error: `依赖的前置任务未完成：${incomplete.map((t) => t.title).join('、')}` };
     }
-    await get().updateTask(id, { status });
-    return { success: true, error: '' };
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, status } : t)) })); // 乐观更新
+    try {
+      const { data: updated } = await taskApi.update(id, { status });
+      set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
+      emitTaskUpdate(updated);
+      return { success: true, error: '' };
+    } catch (error: any) {
+      set({ tasks: previousTasks }); // 回滚
+      return { success: false, error: error.response?.data?.message || '操作失败' };
+    }
   },
 
   toggleSubtask: async (taskId, subtaskId) => {
@@ -105,12 +138,32 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   archiveTask: async (id) => {
-    const { data: archived } = await taskApi.archive(id);
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), archivedTasks: [archived, ...s.archivedTasks] }));
+    const previousTasks = get().tasks;
+    const previousArchived = get().archivedTasks;
+    const task = previousTasks.find(t => t.id === id);
+    if (!task) return;
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), archivedTasks: [{ ...task, isArchived: true, archivedAt: new Date().toISOString() }, ...s.archivedTasks] })); // 乐观更新
+    try {
+      const { data: archived } = await taskApi.archive(id);
+      set((s) => ({ archivedTasks: s.archivedTasks.map(t => t.id === id ? archived : t) }));
+    } catch (error) {
+      set({ tasks: previousTasks, archivedTasks: previousArchived }); // 回滚
+      throw error;
+    }
   },
 
   restoreTask: async (id) => {
-    const { data: restored } = await taskApi.restore(id);
-    set((s) => ({ archivedTasks: s.archivedTasks.filter((t) => t.id !== id), tasks: [restored, ...s.tasks] }));
+    const previousTasks = get().tasks;
+    const previousArchived = get().archivedTasks;
+    const task = previousArchived.find(t => t.id === id);
+    if (!task) return;
+    set((s) => ({ archivedTasks: s.archivedTasks.filter((t) => t.id !== id), tasks: [{ ...task, isArchived: false, archivedAt: null }, ...s.tasks] })); // 乐观更新
+    try {
+      const { data: restored } = await taskApi.restore(id);
+      set((s) => ({ tasks: s.tasks.map(t => t.id === id ? restored : t) }));
+    } catch (error) {
+      set({ tasks: previousTasks, archivedTasks: previousArchived }); // 回滚
+      throw error;
+    }
   },
 }));

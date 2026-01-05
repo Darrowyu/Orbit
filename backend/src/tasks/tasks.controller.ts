@@ -26,21 +26,23 @@ export class TasksController {
   }
 
   @Get()
-  async findAll(@Request() req, @Query('teamId') teamId?: string) { return this.tasks.findAll(await this.getTeamId(req, teamId)); }
+  async findAll(@Request() req, @Query('teamId') teamId?: string, @Query('page') page?: string, @Query('limit') limit?: string, @Query('projectId') projectId?: string) {
+    return this.tasks.findAll(await this.getTeamId(req, teamId), { page: page ? parseInt(page, 10) : 1, limit: limit ? parseInt(limit, 10) : 100, projectId });
+  }
 
   @Get('archived')
   async findArchived(@Request() req) { return this.tasks.findArchived(await this.getTeamId(req)); }
 
   @Patch(':id/archive')
   async archive(@Param('id') id: string, @Request() req) {
-    await this.verifyTaskAccess(id, req.user.sub); // 权限验证
-    return this.tasks.archive(id);
+    await this.verifyTaskAccess(id, req.user.sub);
+    return this.tasks.archive(id, req.user.sub);
   }
 
   @Patch(':id/restore')
   async restore(@Param('id') id: string, @Request() req) {
-    await this.verifyTaskAccess(id, req.user.sub); // 权限验证
-    return this.tasks.restore(id);
+    await this.verifyTaskAccess(id, req.user.sub);
+    return this.tasks.restore(id, req.user.sub);
   }
 
   @Get(':id')
@@ -61,53 +63,88 @@ export class TasksController {
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req) {
     await this.verifyTaskAccess(id, req.user.sub);
-    return this.tasks.remove(id);
+    return this.tasks.remove(id, req.user.sub);
   }
 
-  // 批量操作
+  // 批量操作（事务化）
   @Post('batch/move')
-  async batchMove(@Body() body: { ids: string[]; status: string }, @Request() req) {
-    const results = await Promise.all(body.ids.map(async (id) => {
-      try {
-        await this.verifyTaskAccess(id, req.user.sub);
-        return this.tasks.update(id, { status: body.status }, req.user.sub);
-      } catch { return null; }
-    }));
-    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
+  async batchMove(@Body() body: { ids: string[]; status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE' }, @Request() req) {
+    const userId = req.user.sub;
+    return this.prisma.$transaction(async (tx) => {
+      const results = { success: 0, failed: 0, errors: [] as string[] };
+      for (const id of body.ids) {
+        try {
+          const task = await tx.task.findUnique({ where: { id }, select: { teamId: true, dependsOn: true } });
+          if (!task) { results.failed++; results.errors.push(`${id}: 任务不存在`); continue; }
+          const member = await tx.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+          if (!member) { results.failed++; results.errors.push(`${id}: 无权限`); continue; }
+          if (['IN_PROGRESS', 'REVIEW', 'DONE'].includes(body.status) && task.dependsOn?.length) {
+            const incomplete = await tx.task.count({ where: { id: { in: task.dependsOn }, status: { not: 'DONE' } } });
+            if (incomplete > 0) { results.failed++; results.errors.push(`${id}: 前置任务未完成`); continue; }
+          }
+          await tx.task.update({ where: { id }, data: { status: body.status } });
+          results.success++;
+        } catch { results.failed++; }
+      }
+      return results;
+    });
   }
 
   @Post('batch/delete')
   async batchDelete(@Body() body: { ids: string[] }, @Request() req) {
-    const results = await Promise.all(body.ids.map(async (id) => {
-      try {
-        await this.verifyTaskAccess(id, req.user.sub);
-        await this.tasks.remove(id);
-        return true;
-      } catch { return false; }
-    }));
-    return { success: results.filter(r => r).length, failed: results.filter(r => !r).length };
+    const userId = req.user.sub;
+    return this.prisma.$transaction(async (tx) => {
+      const results = { success: 0, failed: 0 };
+      for (const id of body.ids) {
+        try {
+          const task = await tx.task.findUnique({ where: { id }, select: { teamId: true } });
+          if (!task) { results.failed++; continue; }
+          const member = await tx.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+          if (!member) { results.failed++; continue; }
+          await tx.task.delete({ where: { id } });
+          results.success++;
+        } catch { results.failed++; }
+      }
+      return results;
+    });
   }
 
   @Post('batch/archive')
   async batchArchive(@Body() body: { ids: string[] }, @Request() req) {
-    const results = await Promise.all(body.ids.map(async (id) => {
-      try {
-        await this.verifyTaskAccess(id, req.user.sub);
-        return this.tasks.archive(id);
-      } catch { return null; }
-    }));
-    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
+    const userId = req.user.sub;
+    return this.prisma.$transaction(async (tx) => {
+      const results = { success: 0, failed: 0 };
+      for (const id of body.ids) {
+        try {
+          const task = await tx.task.findUnique({ where: { id }, select: { teamId: true } });
+          if (!task) { results.failed++; continue; }
+          const member = await tx.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+          if (!member) { results.failed++; continue; }
+          await tx.task.update({ where: { id }, data: { isArchived: true, archivedAt: new Date() } });
+          results.success++;
+        } catch { results.failed++; }
+      }
+      return results;
+    });
   }
 
   @Post('batch/assign')
   async batchAssign(@Body() body: { ids: string[]; assigneeId: string }, @Request() req) {
-    const results = await Promise.all(body.ids.map(async (id) => {
-      try {
-        await this.verifyTaskAccess(id, req.user.sub);
-        return this.tasks.update(id, { assigneeId: body.assigneeId }, req.user.sub);
-      } catch { return null; }
-    }));
-    return { success: results.filter(r => r !== null).length, failed: results.filter(r => r === null).length };
+    const userId = req.user.sub;
+    return this.prisma.$transaction(async (tx) => {
+      const results = { success: 0, failed: 0 };
+      for (const id of body.ids) {
+        try {
+          const task = await tx.task.findUnique({ where: { id }, select: { teamId: true } });
+          if (!task) { results.failed++; continue; }
+          const member = await tx.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+          if (!member) { results.failed++; continue; }
+          await tx.task.update({ where: { id }, data: { assigneeId: body.assigneeId } });
+          results.success++;
+        } catch { results.failed++; }
+      }
+      return results;
+    });
   }
 }
 

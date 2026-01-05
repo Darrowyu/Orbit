@@ -1,15 +1,69 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService, private notifications: NotificationsService) { }
+  constructor(private prisma: PrismaService, private notifications: NotificationsService, private audit: AuditService) { }
 
-  async findAll(teamId: string, includeArchived = false) {
-    const tasks = await this.prisma.task.findMany({ where: { teamId, isArchived: includeArchived ? undefined : false }, include: { subtasks: true }, orderBy: { createdAt: 'desc' } });
-    return tasks.map(this.format);
+  private async validateDependencies(taskId: string, newStatus: string, teamId: string): Promise<{ valid: boolean; error?: string }> {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { dependsOn: true } });
+    if (!task?.dependsOn?.length) return { valid: true };
+    const restrictedStatuses = ['IN_PROGRESS', 'REVIEW', 'DONE'];
+    if (!restrictedStatuses.includes(newStatus)) return { valid: true };
+    const incompleteDeps = await this.prisma.task.findMany({
+      where: { id: { in: task.dependsOn }, teamId, status: { not: 'DONE' } },
+      select: { id: true, title: true }
+    });
+    if (incompleteDeps.length > 0) {
+      return { valid: false, error: `依赖的前置任务未完成：${incompleteDeps.map(t => t.title).join('、')}` };
+    }
+    return { valid: true };
+  }
+
+  private async detectCircularDependency(taskId: string, newDependsOn: string[], teamId: string): Promise<{ hasCircle: boolean; path?: string[] }> {
+    if (!newDependsOn?.length) return { hasCircle: false };
+    const allTasks = await this.prisma.task.findMany({
+      where: { teamId, isArchived: false },
+      select: { id: true, dependsOn: true, title: true }
+    });
+    const taskMap = new Map(allTasks.map(t => [t.id, t]));
+    const visited = new Set<string>();
+    const path: string[] = [];
+    const dfs = (currentId: string): boolean => {
+      if (currentId === taskId) return true;
+      if (visited.has(currentId)) return false;
+      visited.add(currentId);
+      path.push(taskMap.get(currentId)?.title || currentId);
+      const task = taskMap.get(currentId);
+      const deps = currentId === taskId ? newDependsOn : (task?.dependsOn || []);
+      for (const depId of deps) {
+        if (dfs(depId)) return true;
+      }
+      path.pop();
+      return false;
+    };
+    for (const depId of newDependsOn) {
+      visited.clear();
+      path.length = 0;
+      if (dfs(depId)) return { hasCircle: true, path: [...path] };
+    }
+    return { hasCircle: false };
+  }
+
+  async findAll(teamId: string, options?: { includeArchived?: boolean; page?: number; limit?: number; projectId?: string }) {
+    const { includeArchived = false, page = 1, limit = 100, projectId } = options || {};
+    const where = { teamId, isArchived: includeArchived ? undefined : false, ...(projectId && { projectId }) };
+    const [tasks, total] = await Promise.all([
+      this.prisma.task.findMany({ where, include: { subtasks: true, labels: { include: { label: true } } }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      this.prisma.task.count({ where })
+    ]);
+    return {
+      data: tasks.map(t => ({ ...this.format(t), labels: (t as any).labels?.map((tl: any) => tl.label) })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    };
   }
 
   async findArchived(teamId: string) {
@@ -17,13 +71,24 @@ export class TasksService {
     return tasks.map(this.format);
   }
 
-  async archive(id: string) {
+  async archive(id: string, operatorId?: string) {
+    const existing = await this.prisma.task.findUnique({ where: { id }, select: { teamId: true } });
+    if (!existing) throw new NotFoundException('任务不存在');
+    await this.cleanupDanglingDependencies(id, existing.teamId);
     const task = await this.prisma.task.update({ where: { id }, data: { isArchived: true, archivedAt: new Date() }, include: { subtasks: true } });
+    if (operatorId) {
+      await this.audit.log({ action: 'ARCHIVE', entityType: 'TASK', entityId: id, userId: operatorId, teamId: task.teamId });
+    }
     return this.format(task);
   }
 
-  async restore(id: string) {
+  async restore(id: string, operatorId?: string) {
+    const existing = await this.prisma.task.findUnique({ where: { id }, select: { teamId: true } });
+    if (!existing) throw new NotFoundException('任务不存在');
     const task = await this.prisma.task.update({ where: { id }, data: { isArchived: false, archivedAt: null }, include: { subtasks: true } });
+    if (operatorId) {
+      await this.audit.log({ action: 'RESTORE', entityType: 'TASK', entityId: id, userId: operatorId, teamId: task.teamId });
+    }
     return this.format(task);
   }
 
@@ -35,6 +100,10 @@ export class TasksService {
 
   async create(dto: CreateTaskDto, teamId: string, operatorId: string) {
     const { subtasks, dueDate, ...data } = dto;
+    if (dto.dependsOn?.length) {
+      const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
+      if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
+    }
     const task = await this.prisma.task.create({
       data: {
         ...data,
@@ -48,12 +117,21 @@ export class TasksService {
       const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
       await this.notifications.notifyTaskAssigned(task.title, task.assigneeId, operator?.name || '某人');
     }
+    await this.audit.log({ action: 'CREATE', entityType: 'TASK', entityId: task.id, userId: operatorId, teamId, newValue: { title: task.title, status: task.status, priority: task.priority } });
     return this.format(task);
   }
 
   async update(id: string, dto: UpdateTaskDto, operatorId: string) {
     const oldTask = await this.prisma.task.findUnique({ where: { id }, include: { subtasks: true } });
     if (!oldTask) throw new NotFoundException('任务不存在');
+    if (dto.status && dto.status !== oldTask.status) {
+      const depCheck = await this.validateDependencies(id, dto.status, oldTask.teamId);
+      if (!depCheck.valid) throw new BadRequestException(depCheck.error);
+    }
+    if (dto.dependsOn) {
+      const circleCheck = await this.detectCircularDependency(id, dto.dependsOn, oldTask.teamId);
+      if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
+    }
     const { subtasks, dueDate, ...data } = dto;
     if (subtasks) {
       const existingIds = oldTask.subtasks.map(s => s.id);
@@ -90,12 +168,35 @@ export class TasksService {
         await this.notifications.notifySubtaskCompleted(task.title, st.title, oldTask.assigneeId, operatorName);
       }
     }
+    await this.audit.log({
+      action: 'UPDATE', entityType: 'TASK', entityId: id, userId: operatorId, teamId: oldTask.teamId,
+      oldValue: { title: oldTask.title, status: oldTask.status, priority: oldTask.priority, assigneeId: oldTask.assigneeId },
+      newValue: { title: task.title, status: task.status, priority: task.priority, assigneeId: task.assigneeId }
+    });
     return this.format(task);
   }
 
-  async remove(id: string) {
+  async remove(id: string, operatorId?: string) {
+    const task = await this.prisma.task.findUnique({ where: { id }, select: { teamId: true, title: true } });
+    if (!task) throw new NotFoundException('任务不存在');
+    await this.cleanupDanglingDependencies(id, task.teamId);
     await this.prisma.task.delete({ where: { id } });
+    if (operatorId) {
+      await this.audit.log({ action: 'DELETE', entityType: 'TASK', entityId: id, userId: operatorId, teamId: task.teamId, oldValue: { title: task.title } });
+    }
     return { success: true };
+  }
+
+  private async cleanupDanglingDependencies(deletedTaskId: string, teamId: string): Promise<void> {
+    const tasksWithDep = await this.prisma.task.findMany({
+      where: { teamId, dependsOn: { has: deletedTaskId } },
+      select: { id: true, dependsOn: true }
+    });
+    if (tasksWithDep.length > 0) {
+      await Promise.all(tasksWithDep.map(task =>
+        this.prisma.task.update({ where: { id: task.id }, data: { dependsOn: task.dependsOn.filter(depId => depId !== deletedTaskId) } })
+      ));
+    }
   }
 
   private format(task: { createdAt: Date; dueDate: Date | null; archivedAt: Date | null; [key: string]: unknown }) {

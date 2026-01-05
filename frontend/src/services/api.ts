@@ -39,8 +39,13 @@ export const teamApi = {
   regenerateCode: (teamId: string) => api.post<Team>(`/teams/${teamId}/regenerate-code`),
 };
 
+export interface TaskListResponse {
+  data: Task[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
 export const taskApi = {
-  getAll: () => api.get<Task[]>('/tasks'),
+  getAll: (params?: { page?: number; limit?: number; projectId?: string }) => api.get<TaskListResponse>('/tasks', { params }),
   getArchived: () => api.get<Task[]>('/tasks/archived'),
   create: (data: Partial<Task>) => api.post<Task>('/tasks', data),
   update: (id: string, data: Partial<Task>) => api.patch<Task>(`/tasks/${id}`, data),
