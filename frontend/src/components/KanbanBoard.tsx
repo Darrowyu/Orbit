@@ -143,11 +143,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
     <main className={`flex-1 overflow-x-auto overflow-y-hidden relative ${isDragging ? 'select-none' : ''}`} id="kanban-board-container" onClick={() => setSelectedTaskId(null)}>
       <DependencyLines tasks={tasks} selectedTaskId={selectedTaskId} isDragging={isDragging} />
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
-        <div className="h-full flex px-4 sm:px-6 lg:px-8 py-6 gap-4 lg:gap-6 min-w-max">
+        <div className="h-full flex px-4 sm:px-6 lg:px-8 py-6 gap-3 sm:gap-4 lg:gap-5 min-w-max lg:min-w-0">
           {COLUMN_CONFIG.map((col) => {
             const colTasks = getSorted(filtered.filter((t) => t.status === col.id));
             return (
-              <div key={col.id} className="w-72 sm:w-80 lg:w-[340px] xl:w-[380px] 2xl:w-[420px] flex-shrink-0 flex flex-col">
+              <div key={col.id} className="w-[280px] sm:w-[300px] md:w-[320px] lg:flex-1 lg:min-w-[280px] lg:max-w-[400px] flex-shrink-0 lg:flex-shrink flex flex-col">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-500">{COLUMN_ICONS[col.id]}</span>
