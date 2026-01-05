@@ -1,3 +1,8 @@
+---
+name: git-windows
+description: Windows环境Git操作规范。在Windows系统执行git操作时使用git -C格式避免PowerShell解析问题。
+---
+
 # Windows Git 操作规范
 
 ## 概述

@@ -1,6 +1,6 @@
 ---
 name: typescript-review
-description: Review TypeScript and JavaScript code changes for compliance with coding standards, style violations, and code quality issues. Use when reviewing pull requests or diffs containing TypeScript/JavaScript code.
+description: TypeScript/JavaScript代码审查。审查包含TS/JS代码的PR或diff时使用。检查类型安全、React模式、错误处理、命名规范。
 ---
 
 ## TypeScript Code Review
