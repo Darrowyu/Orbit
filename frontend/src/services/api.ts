@@ -2,8 +2,12 @@ import axios from 'axios';
 import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
+const API_BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : '/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
 
