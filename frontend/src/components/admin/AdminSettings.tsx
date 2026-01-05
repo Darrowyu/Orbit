@@ -86,24 +86,24 @@ export const AdminSettings: React.FC = memo(() => {
           <h3 className="text-sm font-medium text-neutral-500 mb-4">{group.title}</h3>
           <div className="space-y-5">
             {group.items.map((item) => (
-              <div key={item.key} className="grid grid-cols-[140px_1fr_auto] gap-4 items-center">
-                <div>
+              <div key={item.key} className="flex items-center gap-4">
+                <div className="w-36 shrink-0">
                   <div className="text-sm font-medium text-neutral-700">{item.label}</div>
                   {item.desc && <div className="text-xs text-neutral-400 mt-0.5 leading-tight">{item.desc}</div>}
                 </div>
                 <div className="flex items-center gap-2">
                   {item.type === 'select' ? (
-                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options]} className="w-40" />
+                    <Select value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" options={[{ value: '', label: '未设置' }, ...item.options]} className="w-36" />
                   ) : (
                     <>
-                      <Input type={item.type} value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" className="w-32" />
+                      <Input type={item.type} value={localSettings[item.key] || ''} onChange={(e) => handleChange(item.key, e.target.value)} size="sm" className="w-28" />
                       {item.unit && <span className="text-sm text-neutral-400 shrink-0">{item.unit}</span>}
                     </>
                   )}
+                  <Button size="xs" variant="ghost" onClick={() => handleSave(item.key)} disabled={saving === item.key || localSettings[item.key] === settings[item.key]}>
+                    {saving === item.key ? '...' : '保存'}
+                  </Button>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => handleSave(item.key)} disabled={saving === item.key || localSettings[item.key] === settings[item.key]}>
-                  {saving === item.key ? '...' : '保存'}
-                </Button>
               </div>
             ))}
           </div>
