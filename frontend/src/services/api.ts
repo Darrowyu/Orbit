@@ -3,7 +3,7 @@ import { Task, User, AIResponse, Team, TeamMember, Notification, Project, Projec
 import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
