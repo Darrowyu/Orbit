@@ -86,9 +86,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
           )}
         </div>
       </div>
-      <div>
-        <h3 className="text-slate-900 font-semibold mb-1 cursor-grab active:cursor-grabbing leading-tight">{task.title}</h3>
-        <p className="text-slate-500 text-xs line-clamp-2">{task.description}</p>
+      <div className="min-w-0">
+        <h3 className="text-slate-900 font-semibold mb-1 cursor-grab active:cursor-grabbing leading-tight break-words line-clamp-3">{task.title}</h3>
+        <p className="text-slate-500 text-xs line-clamp-2 break-words">{task.description}</p>
       </div>
       {dependencyType !== 'none' && !isSelected && <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-opacity-10 w-fit ${dependencyType === 'dependency' ? 'bg-amber-500 text-amber-600' : 'bg-purple-500 text-purple-600'}`}>{dependencyType === 'dependency' ? '← 前置' : '→ 后续'}</div>}
       {total > 0 && (
