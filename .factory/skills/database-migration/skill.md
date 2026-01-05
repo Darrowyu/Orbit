@@ -1,6 +1,6 @@
 ---
 name: database-migration
-description: Execute database migrations across ORMs and platforms with zero-downtime strategies, data transformation, and rollback procedures. Use when migrating databases, changing schemas, performing data transformations, or implementing zero-downtime deployment strategies.
+description: 跨平台数据库迁移策略。跨ORM迁移、零停机部署、复杂schema变更、数据转换时使用。涵盖回滚方案和扩展收缩模式。
 ---
 
 ## Database Migration

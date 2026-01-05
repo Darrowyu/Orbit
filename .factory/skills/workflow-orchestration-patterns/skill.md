@@ -1,6 +1,6 @@
 ---
 name: workflow-orchestration-patterns
-description: Design durable workflows with patterns for distributed systems. Covers workflow vs activity separation, saga patterns, state management, and determinism constraints. Use when building long-running processes, distributed transactions, or microservice orchestration.
+description: 工作流编排模式。构建长期运行流程、分布式事务、后台任务时使用。涵盖Saga模式、状态机、重试机制。
 ---
 
 ## Workflow Orchestration Patterns
