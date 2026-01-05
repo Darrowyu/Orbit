@@ -34,13 +34,13 @@ export class LabelsController {
   }
 
   @Delete('task/:taskId/:labelId')
-  removeFromTask(@Param('taskId') taskId: string, @Param('labelId') labelId: string) {
-    return this.service.removeFromTask(taskId, labelId);
+  removeFromTask(@Param('taskId') taskId: string, @Param('labelId') labelId: string, @Req() req) {
+    return this.service.removeFromTask(taskId, labelId, req.user.currentTeamId);
   }
 
   @Get('task/:taskId')
-  getTaskLabels(@Param('taskId') taskId: string) {
-    return this.service.getTaskLabels(taskId);
+  getTaskLabels(@Param('taskId') taskId: string, @Req() req) {
+    return this.service.getTaskLabels(taskId, req.user.currentTeamId);
   }
 
   @Put('task/:taskId')

@@ -77,8 +77,9 @@ export class RecurringService {
     for (const rt of dueRecurring) {
       try {
         const subtasks = JSON.parse(rt.template.subtasks as string || '[]');
+        const labelIds = JSON.parse(rt.template.labelIds as string || '[]');
         
-        await this.prisma.task.create({
+        const task = await this.prisma.task.create({
           data: {
             title: rt.template.title,
             description: rt.template.description,
@@ -87,6 +88,9 @@ export class RecurringService {
             subtasks: { create: subtasks.map((s: string) => ({ title: s })) },
           },
         });
+        if (labelIds.length > 0) { // 应用模板标签
+          await this.prisma.taskLabel.createMany({ data: labelIds.map((labelId: string) => ({ taskId: task.id, labelId })) });
+        }
 
         const nextRun = this.calculateNextRun(now, rt.frequency, rt.interval, rt.daysOfWeek, rt.dayOfMonth ?? undefined);
         await this.prisma.recurringTask.update({

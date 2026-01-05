@@ -23,13 +23,15 @@ export class ProjectsController {
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string) { // 获取项目详情
-        return this.projectsService.findOne(id);
+    async findOne(@Param('id') id: string, @Req() req) { // 获取项目详情
+        const { userId } = await this.getUserInfo(req);
+        return this.projectsService.findOne(id, userId);
     }
 
     @Get(':id/stats')
-    async getStats(@Param('id') id: string) { // 获取项目统计
-        return this.projectsService.getStats(id);
+    async getStats(@Param('id') id: string, @Req() req) { // 获取项目统计
+        const { userId } = await this.getUserInfo(req);
+        return this.projectsService.getStats(id, userId);
     }
 
     @Post()

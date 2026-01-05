@@ -28,12 +28,19 @@ export class ProjectsService {
         return projects.map(this.format);
     }
 
-    async findOne(id: string) { // 获取单个项目详情
+    async findOne(id: string, userId?: string) { // 获取单个项目详情
         const project = await this.prisma.project.findUnique({
             where: { id },
             include: { members: { include: { user: true } }, owner: true, _count: { select: { tasks: true } } },
         });
         if (!project) throw new NotFoundException('项目不存在');
+        if (userId) { // 验证用户是否为项目成员或同团队成员
+            const isMember = project.members.some(m => m.userId === userId);
+            if (!isMember) {
+                const isTeamMember = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: project.teamId } } });
+                if (!isTeamMember) throw new ForbiddenException('无权访问此项目');
+            }
+        }
         return this.format(project);
     }
 
@@ -114,13 +121,16 @@ export class ProjectsService {
 
     async addMember(projectId: string, dto: AddProjectMemberDto, operatorId: string) { // 添加成员
         await this.checkPermission(projectId, operatorId, ['owner', 'admin']);
+        const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { teamId: true, name: true } });
+        if (!project) throw new NotFoundException('项目不存在');
+        const isTeamMember = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: dto.userId, teamId: project.teamId } } });
+        if (!isTeamMember) throw new BadRequestException('只能添加团队成员到项目');
         const existing = await this.prisma.projectMember.findUnique({ where: { userId_projectId: { userId: dto.userId, projectId } } });
         if (existing) throw new ForbiddenException('该用户已是项目成员');
         await this.prisma.projectMember.create({ data: { userId: dto.userId, projectId, role: dto.role || 'member' } });
-        const project = await this.prisma.project.findUnique({ where: { id: projectId } });
         const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
-        await this.notifications.notifyProjectMemberAdded(project?.name || '', dto.userId, operator?.name || '某人');
-        return this.findOne(projectId);
+        await this.notifications.notifyProjectMemberAdded(project.name, dto.userId, operator?.name || '某人');
+        return this.findOne(projectId, operatorId);
     }
 
     async updateMember(projectId: string, memberId: string, dto: UpdateProjectMemberDto, operatorId: string) { // 更新成员角色
@@ -143,13 +153,24 @@ export class ProjectsService {
         const project = await this.prisma.project.findUnique({ where: { id: projectId } });
         const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
         await this.notifications.notifyProjectMemberRemoved(project?.name || '', member.userId, operator?.name || '某人');
-        await this.prisma.projectMember.delete({ where: { id: memberId } });
-        return this.findOne(projectId);
+        // 清理被移除成员在该项目下负责的任务
+        await this.prisma.$transaction([
+            this.prisma.task.updateMany({ where: { projectId, assigneeId: member.userId }, data: { assigneeId: null } }),
+            this.prisma.projectMember.delete({ where: { id: memberId } }),
+        ]);
+        return this.findOne(projectId, operatorId);
     }
 
-    async getStats(id: string) { // 获取项目统计数据
-        const project = await this.prisma.project.findUnique({ where: { id }, include: { tasks: { select: { status: true, priority: true } } } });
+    async getStats(id: string, userId?: string) { // 获取项目统计数据
+        const project = await this.prisma.project.findUnique({ where: { id }, include: { tasks: { select: { status: true, priority: true } }, members: { select: { userId: true } } } });
         if (!project) throw new NotFoundException('项目不存在');
+        if (userId) { // 验证权限
+            const isMember = project.members.some(m => m.userId === userId);
+            if (!isMember) {
+                const isTeamMember = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: project.teamId } } });
+                if (!isTeamMember) throw new ForbiddenException('无权访问此项目');
+            }
+        }
         const tasks = project.tasks;
         const total = tasks.length;
         const byStatus = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
