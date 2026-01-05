@@ -22,7 +22,9 @@ export class UsersService {
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await bcrypt.compare(oldPassword, user.password))) throw new ForbiddenException('原密码错误');
-    if (newPassword.length < 6) throw new ForbiddenException('新密码至少6位');
+    if (newPassword.length < 8) throw new ForbiddenException('密码长度至少8位');
+    if (!/[A-Za-z]/.test(newPassword)) throw new ForbiddenException('密码必须包含字母');
+    if (!/[0-9]/.test(newPassword)) throw new ForbiddenException('密码必须包含数字');
     await this.prisma.user.update({ where: { id: userId }, data: { password: await bcrypt.hash(newPassword, 10) } });
     return { success: true };
   }
