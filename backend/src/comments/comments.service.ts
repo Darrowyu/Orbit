@@ -21,6 +21,8 @@ export class CommentsService {
   async create(taskId: string, userId: string, dto: CommentDto) {
     const task = await this.prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('任务不存在');
+    const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId: task.teamId } } });
+    if (!member) throw new ForbiddenException('您不是该任务所属团队的成员');
     const comment = await this.prisma.comment.create({
       data: { content: dto.content, taskId, userId },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },

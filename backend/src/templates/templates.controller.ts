@@ -24,11 +24,11 @@ export class TemplatesController {
 
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: any, @Req() req) {
-    return this.service.update(id, dto, req.user.currentTeamId);
+    return this.service.update(id, dto, req.user.currentTeamId, req.user.id);
   }
 
   @Delete(':id')
   delete(@Param('id') id: string, @Req() req) {
-    return this.service.delete(id, req.user.currentTeamId);
+    return this.service.delete(id, req.user.currentTeamId, req.user.id);
   }
 }

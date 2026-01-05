@@ -40,12 +40,14 @@ export class AttachmentsService {
     const att = await this.prisma.attachment.findUnique({ where: { id }, include: { task: true } });
     if (!att) throw new NotFoundException('附件不存在');
     if (att.task.teamId !== teamId) throw new ForbiddenException('无权限');
-    
+    if (att.uploaderId !== userId) { // 非上传者需要验证是否为团队管理员
+      const member = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId } } });
+      if (!member || !['owner', 'admin'].includes(member.role)) throw new ForbiddenException('只有上传者或管理员可删除附件');
+    }
     const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
     if (fs.existsSync(filePath)) {
       try { fs.unlinkSync(filePath); } catch { /* 忽略文件删除错误 */ }
     }
-    
     return this.prisma.attachment.delete({ where: { id } });
   }
 }

@@ -78,7 +78,12 @@ export class TeamsService {
     const member = await this.prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
     if (!member) throw new NotFoundException('成员不存在');
     if (member.role === 'owner') throw new ForbiddenException('无法移除团队所有者');
-    await this.prisma.teamMember.delete({ where: { id: memberId } });
+    // 清理被移除成员负责的任务和子任务
+    await this.prisma.$transaction([
+      this.prisma.task.updateMany({ where: { teamId, assigneeId: member.userId }, data: { assigneeId: null } }),
+      this.prisma.subtask.updateMany({ where: { task: { teamId }, assigneeId: member.userId }, data: { assigneeId: null } }),
+      this.prisma.teamMember.delete({ where: { id: memberId } }),
+    ]);
     return this.findOne(teamId);
   }
 

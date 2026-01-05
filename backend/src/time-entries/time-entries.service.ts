@@ -29,7 +29,9 @@ export class TimeEntriesService {
     return this.prisma.timeEntry.findFirst({ where: { userId, endTime: null }, include: { task: { select: { id: true, title: true } } } });
   }
 
-  async getByTask(taskId: string) {
+  async getByTask(taskId: string, teamId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
+    if (!task) throw new NotFoundException('任务不存在');
     return this.prisma.timeEntry.findMany({
       where: { taskId },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },
@@ -51,7 +53,9 @@ export class TimeEntriesService {
     });
   }
 
-  async getTotalByTask(taskId: string) {
+  async getTotalByTask(taskId: string, teamId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
+    if (!task) throw new NotFoundException('任务不存在');
     const entries = await this.prisma.timeEntry.findMany({ where: { taskId, duration: { not: null } }, select: { duration: true } });
     return entries.reduce((sum, e) => sum + (e.duration || 0), 0);
   }
