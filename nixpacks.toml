@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[phases.install]
+cmds = ["cd frontend && npm install --legacy-peer-deps --include=dev"]
+
+[phases.build]
+cmds = ["cd frontend && npm run build"]
+
+[start]
+cmd = "cd frontend && npx serve dist -s -l 3000"
