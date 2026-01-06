@@ -317,6 +317,25 @@
 | **向利益相关者展示分析、创建数据报告时** | `data-storytelling` | 将数据转化为有说服力的叙述 |
 | **构建业务仪表板、选择指标、设计可视化布局时** | `kpi-dashboard-design` | KPI 仪表板设计最佳实践 |
 
+### 上下文工程 Skills
+
+| 触发场景 | Skill 名称 | 说明 |
+|---------|-----------|------|
+| **设计Agent架构、理解上下文窗口、调试上下文问题时** | `context-fundamentals` | 上下文基础、注意力机制、渐进式披露原则 |
+| **诊断上下文问题、调试Agent失败、lost-in-middle现象时** | `context-degradation` | 识别上下文中毒、分心、混淆、冲突模式 |
+| **压缩上下文、总结对话历史、减少token使用时** | `context-compression` | 结构化摘要、锚定迭代摘要、三阶段压缩工作流 |
+| **优化上下文、降低token成本、实现KV缓存优化时** | `context-optimization` | 压缩、观察遮蔽、KV缓存、上下文分区技术 |
+
+> 💡 **上下文工程类 - 选择指南**：
+>
+> | 场景 | 使用 Skill |
+> |------|-----------|
+> | 设计新Agent系统架构 | `context-fundamentals` |
+> | Agent在长对话中性能下降 | `context-degradation` |
+> | 会话超出上下文窗口限制 | `context-compression` |
+> | 需要降低token成本/延迟 | `context-optimization` |
+> | 调试Agent意外行为 | `context-degradation` → `context-fundamentals` |
+
 ---
 
 ### Skills 触发优先级
