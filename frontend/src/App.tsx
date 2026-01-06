@@ -9,6 +9,7 @@ import { LoginModal } from './components/LoginModal';
 import { TeamSetup } from './components/TeamSetup';
 import { TeamSettings } from './components/TeamSettings';
 import { OnboardingGuide } from './components/OnboardingGuide';
+import { useOnboardingStore } from './stores/onboardingStore';
 import { RiskAlert } from './components/RiskAlert';
 import { useDialog } from './components/ConfirmDialog';
 import { useAuthStore } from './stores/authStore';
@@ -29,6 +30,7 @@ const App: React.FC = () => {
   const { tasks, archivedTasks, fetchTasks, fetchArchivedTasks, createTask, updateTask, deleteTask, moveTask, toggleSubtask, assignSubtask, archiveTask, restoreTask } = useTaskStore();
   const { members, fetchTeams, fetchMembers } = useTeamStore();
   const { projects, currentProject, fetchProjects, fetchArchivedProjects, setCurrentProject, createProject, updateProject, archiveProject, restoreProject, deleteProject, addMember, updateMember, removeMember } = useProjectStore();
+  const { isRunning: showOnboardingTour } = useOnboardingStore();
   const { confirm, alert } = useDialog();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,7 +152,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-slate-900">
-      {showOnboarding && <OnboardingGuide onComplete={() => { setShowOnboarding(false); updateUser({ isFirstLogin: false }); }} />}
+      {(showOnboarding || showOnboardingTour) && <OnboardingGuide onComplete={() => { setShowOnboarding(false); updateUser({ isFirstLogin: false }); }} />}
 
       <SlimHeader
         user={user}

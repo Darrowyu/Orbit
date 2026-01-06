@@ -14,8 +14,10 @@
   "dependencies": {
     "@hello-pangea/dnd": "16.5.0",
     "axios": "^1.6.0",
+    "orbit": "file:..",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-joyride": "^2.9.3",
     "react-router-dom": "^7.9.6",
     "socket.io-client": "^4.7.0",
     "zustand": "^4.5.0"

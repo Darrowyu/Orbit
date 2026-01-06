@@ -50,6 +50,7 @@ export const FilterBar = memo(function FilterBar({
 
       {/* 新建按钮 */}
       <Button 
+        id="onboarding-new-task"
         onClick={onNewTask} 
         size="sm"
         className="w-full sm:w-auto"
