@@ -78,8 +78,9 @@ export const AdminPage: React.FC = () => {
     if (await confirm({ title: '删除用户', message: '确定要删除该用户吗？此操作不可恢复！', type: 'danger', confirmText: '删除' })) {
       try {
         await deleteUser(id);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '删除失败';
+      } catch (e) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        const msg = err.response?.data?.message || err.message || '删除失败';
         await alert({ title: '无法删除用户', message: msg, type: 'warning' });
       }
     }
