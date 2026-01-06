@@ -142,8 +142,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   },
 
   deleteUser: async (id) => {
-    await adminApi.deleteUser(id);
-    set((s) => ({ users: s.users.filter((u) => u.id !== id), total: s.total - 1 }));
+    const { data } = await adminApi.deleteUser(id);
+    if (data.success) set((s) => ({ users: s.users.filter((u) => u.id !== id), total: s.total - 1 }));
   },
 
   fetchLoginLogs: async (userId, page = 1) => {

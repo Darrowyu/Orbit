@@ -63,7 +63,7 @@ export const AdminPage: React.FC = () => {
   useEffect(() => { fetchStats(); fetchUsers().finally(() => setUsersLoading(false)); fetchTrends(); fetchHealth(); }, [fetchStats, fetchUsers, fetchTrends, fetchHealth]);
   useEffect(() => { if (tab === 'users') { setUsersLoading(true); fetchUsers({ page, search, status: statusFilter }).finally(() => setUsersLoading(false)); } }, [page, search, statusFilter, tab, fetchUsers]);
 
-  const { confirm } = useDialog();
+  const { confirm, alert } = useDialog();
   const handleToggleStatus = useCallback(async (id: string) => { if (await confirm({ title: '切换状态', message: '确定要切换该用户状态吗？', type: 'warning' })) await toggleUserStatus(id); }, [confirm, toggleUserStatus]);
   const openPwdModal = useCallback((id: string, name: string) => { setPwdModal({ id, name }); setNewPwd(''); setConfirmPwd(''); setPwdError(''); }, []);
   const handleResetPassword = useCallback(async () => {
@@ -74,7 +74,16 @@ export const AdminPage: React.FC = () => {
     setPwdModal(null);
   }, [newPwd, confirmPwd, pwdModal, resetPassword]);
   const handleSetAdmin = useCallback(async (id: string, current: boolean) => { if (await confirm({ title: '权限变更', message: current ? '确定取消管理员权限？' : '确定设为管理员？', type: 'warning' })) await setSuperAdmin(id, !current); }, [confirm, setSuperAdmin]);
-  const handleDelete = useCallback(async (id: string) => { if (await confirm({ title: '删除用户', message: '确定要删除该用户吗？此操作不可恢复！', type: 'danger', confirmText: '删除' })) await deleteUser(id); }, [confirm, deleteUser]);
+  const handleDelete = useCallback(async (id: string) => { 
+    if (await confirm({ title: '删除用户', message: '确定要删除该用户吗？此操作不可恢复！', type: 'danger', confirmText: '删除' })) {
+      try {
+        await deleteUser(id);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '删除失败';
+        await alert({ title: '无法删除用户', message: msg, type: 'warning' });
+      }
+    }
+  }, [confirm, alert, deleteUser]);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'stats', label: '概览' },
