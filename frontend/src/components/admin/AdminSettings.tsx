@@ -44,11 +44,11 @@ const SETTING_GROUPS: SettingGroup[] = [
 ];
 
 export const AdminSettings: React.FC = memo(() => {
-  const { settings, storageStats, fetchSettings, updateSetting, fetchStorageStats } = useAdminStore();
+  const { settings, storageStats, fetchSettings, updateSetting, fetchStorageStats, loaded } = useAdminStore();
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
-  useEffect(() => { fetchSettings(); fetchStorageStats(); }, [fetchSettings, fetchStorageStats]);
+  useEffect(() => { if (!loaded.settings) { fetchSettings(); fetchStorageStats(); } }, [fetchSettings, fetchStorageStats, loaded.settings]);
   useEffect(() => { setLocalSettings(settings); }, [settings]);
 
   const handleChange = (key: string, value: string) => {

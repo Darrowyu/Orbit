@@ -17,13 +17,17 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export const AdminTaskMonitor: React.FC = memo(() => {
-  const { overdueTasks, overdueTotal, taskStats, fetchOverdueTasks, fetchTaskStats, batchArchiveTasks } = useAdminStore();
-  const [loading, setLoading] = useState(true);
+  const { overdueTasks, overdueTotal, taskStats, fetchOverdueTasks, fetchTaskStats, batchArchiveTasks, loaded } = useAdminStore();
+  const [loading, setLoading] = useState(!loaded.tasks);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const { confirm } = useDialog();
 
-  useEffect(() => { setLoading(true); Promise.all([fetchOverdueTasks(page), fetchTaskStats()]).finally(() => setLoading(false)); }, [page, fetchOverdueTasks, fetchTaskStats]);
+  useEffect(() => { 
+    if (page === 1 && loaded.tasks) return;
+    setLoading(true); 
+    Promise.all([fetchOverdueTasks(page), fetchTaskStats()]).finally(() => setLoading(false)); 
+  }, [page, fetchOverdueTasks, fetchTaskStats, loaded.tasks]);
 
   const handleSelectAll = () => {
     if (selected.length === overdueTasks.length) setSelected([]);

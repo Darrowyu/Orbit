@@ -31,8 +31,8 @@ const parseUserAgent = (ua: string | null): { browser: string; os: string; devic
 };
 
 export const AdminLoginLog: React.FC = memo(() => {
-  const { loginLogs, users, fetchLoginLogs, fetchUsers } = useAdminStore();
-  const [loading, setLoading] = useState(true);
+  const { loginLogs, users, fetchLoginLogs, fetchUsers, loaded } = useAdminStore();
+  const [loading, setLoading] = useState(!loaded.logs);
   const [page, setPage] = useState(1);
   const [userId, setUserId] = useState('');
   const [status, setStatus] = useState('');
@@ -43,9 +43,11 @@ export const AdminLoginLog: React.FC = memo(() => {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
   
   useEffect(() => {
+    const isInitial = page === 1 && !userId;
+    if (isInitial && loaded.logs && loginLogs.length > 0) return;
     setLoading(true);
     fetchLoginLogs(userId || undefined, page).finally(() => setLoading(false));
-  }, [page, userId, fetchLoginLogs]);
+  }, [page, userId, fetchLoginLogs, loaded.logs, loginLogs.length]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));

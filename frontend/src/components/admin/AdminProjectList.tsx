@@ -20,8 +20,8 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 };
 
 export const AdminProjectList: React.FC = memo(() => {
-  const { projects, projectsTotal, teams, fetchProjects, fetchTeams, archiveProject, restoreProject } = useAdminStore();
-  const [loading, setLoading] = useState(true);
+  const { projects, projectsTotal, teams, fetchProjects, fetchTeams, archiveProject, restoreProject, loaded } = useAdminStore();
+  const [loading, setLoading] = useState(!loaded.projects);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [teamId, setTeamId] = useState('');
@@ -31,7 +31,12 @@ export const AdminProjectList: React.FC = memo(() => {
   const { confirm } = useDialog();
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
-  useEffect(() => { setLoading(true); fetchProjects({ page, status, teamId, search }).finally(() => setLoading(false)); }, [page, status, teamId, search, fetchProjects]);
+  useEffect(() => { 
+    const isInitial = page === 1 && !status && !teamId && !search;
+    if (isInitial && loaded.projects) return;
+    setLoading(true); 
+    fetchProjects({ page, status, teamId, search }).finally(() => setLoading(false)); 
+  }, [page, status, teamId, search, fetchProjects, loaded.projects]);
 
   const handleViewDetail = async (id: string) => {
     setDetailModal(id);

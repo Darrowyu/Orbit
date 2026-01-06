@@ -40,6 +40,8 @@ interface OverdueTask { id: string; title: string; priority: string; status: str
 interface TaskStats { statusDistribution: { status: string; count: number }[]; unassignedCount: number }
 interface AdminAuditLog { id: string; action: string; entityType: string; entityId: string; oldValue: Record<string, unknown> | null; newValue: Record<string, unknown> | null; createdAt: string; user: { id: string; name: string; avatar: string; color: string } }
 
+interface LoadedState { stats: boolean; users: boolean; teams: boolean; projects: boolean; tasks: boolean; audit: boolean; logs: boolean; settings: boolean; }
+
 interface AdminStore {
   users: AdminUser[];
   stats: AdminStats | null;
@@ -60,6 +62,7 @@ interface AdminStore {
   auditTotal: number;
   settings: Record<string, string>;
   storageStats: { totalSize: number; fileCount: number } | null;
+  loaded: LoadedState;
   fetchStats: () => Promise<void>;
   fetchUsers: (query?: { page?: number; search?: string; status?: string }) => Promise<void>;
   toggleUserStatus: (id: string) => Promise<void>;
@@ -84,7 +87,7 @@ interface AdminStore {
   fetchStorageStats: () => Promise<void>;
 }
 
-export const useAdminStore = create<AdminStore>((set) => ({
+export const useAdminStore = create<AdminStore>((set, get) => ({
   users: [],
   stats: null,
   loginLogs: [],
@@ -104,19 +107,23 @@ export const useAdminStore = create<AdminStore>((set) => ({
   auditTotal: 0,
   settings: {},
   storageStats: null,
+  loaded: { stats: false, users: false, teams: false, projects: false, tasks: false, audit: false, logs: false, settings: false },
 
   fetchStats: async () => {
+    if (get().loaded.stats && get().stats) return;
     try {
       const { data } = await adminApi.getStats();
-      set({ stats: data });
+      set({ stats: data, loaded: { ...get().loaded, stats: true } });
     } catch { /* 静默处理统计获取失败 */ }
   },
 
   fetchUsers: async (query = {}) => {
+    const isInitialLoad = !query.page && !query.search && !query.status;
+    if (isInitialLoad && get().loaded.users && get().users.length > 0) return;
     set({ isLoading: true });
     try {
       const { data } = await adminApi.getUsers(query);
-      set({ users: data.users, total: data.total, page: data.page, isLoading: false });
+      set({ users: data.users, total: data.total, page: data.page, isLoading: false, loaded: { ...get().loaded, users: true } });
     } catch { set({ isLoading: false }); }
   },
 
@@ -140,13 +147,15 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchLoginLogs: async (userId, page = 1) => {
+    if (!userId && page === 1 && get().loaded.logs && get().loginLogs.length > 0) return;
     try {
       const { data } = await adminApi.getLoginLogs(userId, page);
-      set({ loginLogs: data.logs });
+      set({ loginLogs: data.logs, loaded: { ...get().loaded, logs: true } });
     } catch { /* 静默处理日志获取失败 */ }
   },
 
   fetchTrends: async (days = 7) => {
+    if (get().trends) return;
     try {
       const { data } = await adminApi.getTrends(days);
       set({ trends: data });
@@ -154,6 +163,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchHealth: async () => {
+    if (get().health) return;
     try {
       const { data } = await adminApi.getHealthIndicators();
       set({ health: data });
@@ -161,10 +171,12 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchTeams: async (query = {}) => {
+    const isInitialLoad = !query.page && !query.search && !query.sort;
+    if (isInitialLoad && get().loaded.teams && get().teams.length > 0) return;
     set({ isLoading: true });
     try {
       const { data } = await adminApi.getTeams(query);
-      set({ teams: data.teams, teamsTotal: data.total, isLoading: false });
+      set({ teams: data.teams, teamsTotal: data.total, isLoading: false, loaded: { ...get().loaded, teams: true } });
     } catch { set({ isLoading: false }); }
   },
 
@@ -178,10 +190,12 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchProjects: async (query = {}) => {
+    const isInitialLoad = !query.page && !query.status && !query.teamId && !query.search;
+    if (isInitialLoad && get().loaded.projects && get().projects.length > 0) return;
     set({ isLoading: true });
     try {
       const { data } = await adminApi.getProjects(query);
-      set({ projects: data.projects, projectsTotal: data.total, isLoading: false });
+      set({ projects: data.projects, projectsTotal: data.total, isLoading: false, loaded: { ...get().loaded, projects: true } });
     } catch { set({ isLoading: false }); }
   },
 
@@ -196,14 +210,16 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchOverdueTasks: async (page = 1) => {
+    if (page === 1 && get().loaded.tasks && get().overdueTasks.length > 0) return;
     set({ isLoading: true });
     try {
       const { data } = await adminApi.getOverdueTasks(page);
-      set({ overdueTasks: data.tasks, overdueTotal: data.total, isLoading: false });
+      set({ overdueTasks: data.tasks, overdueTotal: data.total, isLoading: false, loaded: { ...get().loaded, tasks: true } });
     } catch { set({ isLoading: false }); }
   },
 
   fetchTaskStats: async () => {
+    if (get().taskStats) return;
     try {
       const { data } = await adminApi.getTaskStats();
       set({ taskStats: data });
@@ -216,17 +232,20 @@ export const useAdminStore = create<AdminStore>((set) => ({
   },
 
   fetchAuditLogs: async (query = {}) => {
+    const isInitialLoad = !query.page && !query.startDate && !query.endDate && !query.action && !query.entityType && !query.userId;
+    if (isInitialLoad && get().loaded.audit && get().auditLogs.length > 0) return;
     set({ isLoading: true });
     try {
       const { data } = await adminApi.getAuditLogs(query);
-      set({ auditLogs: data.logs, auditTotal: data.total, isLoading: false });
+      set({ auditLogs: data.logs, auditTotal: data.total, isLoading: false, loaded: { ...get().loaded, audit: true } });
     } catch { set({ isLoading: false }); }
   },
 
   fetchSettings: async () => {
+    if (get().loaded.settings && Object.keys(get().settings).length > 0) return;
     try {
       const { data } = await adminApi.getSettings();
-      set({ settings: data });
+      set({ settings: data, loaded: { ...get().loaded, settings: true } });
     } catch { /* 静默处理 */ }
   },
 

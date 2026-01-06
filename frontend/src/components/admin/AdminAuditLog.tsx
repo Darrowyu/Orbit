@@ -38,8 +38,8 @@ const ENTITY_OPTIONS = [
 ];
 
 export const AdminAuditLog: React.FC = memo(() => {
-  const { auditLogs, auditTotal, fetchAuditLogs, users, fetchUsers } = useAdminStore();
-  const [loading, setLoading] = useState(true);
+  const { auditLogs, auditTotal, fetchAuditLogs, users, fetchUsers, loaded } = useAdminStore();
+  const [loading, setLoading] = useState(!loaded.audit);
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
   const [entityType, setEntityType] = useState('');
@@ -49,7 +49,12 @@ export const AdminAuditLog: React.FC = memo(() => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { setLoading(true); fetchAuditLogs({ page, action, entityType, userId, startDate, endDate }).finally(() => setLoading(false)); }, [page, action, entityType, userId, startDate, endDate, fetchAuditLogs]);
+  useEffect(() => { 
+    const isInitial = page === 1 && !action && !entityType && !userId && !startDate && !endDate;
+    if (isInitial && loaded.audit) return;
+    setLoading(true); 
+    fetchAuditLogs({ page, action, entityType, userId, startDate, endDate }).finally(() => setLoading(false)); 
+  }, [page, action, entityType, userId, startDate, endDate, fetchAuditLogs, loaded.audit]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
