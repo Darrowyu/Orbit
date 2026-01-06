@@ -1,52 +1,99 @@
-import React, { useState } from 'react';
-import { Button } from './Button';
+import React, { useCallback, useEffect } from 'react';
+import Joyride, { CallBackProps, ACTIONS, EVENTS, STATUS, Step } from 'react-joyride';
+import { useOnboardingStore } from '../stores/onboardingStore';
 import { userApi } from '../services/api';
+
+const STEPS: Step[] = [
+  {
+    target: '#onboarding-new-task',
+    title: '创建任务',
+    content: '点击这里创建新任务，输入标题后可使用 AI 自动填充描述和子任务',
+    disableBeacon: true,
+    placement: 'bottom',
+  },
+  {
+    target: '#onboarding-kanban-column',
+    title: '看板管理',
+    content: '将任务卡片拖拽到不同列来更新状态，从「待处理」到「已完成」',
+    placement: 'right',
+  },
+  {
+    target: '#onboarding-settings',
+    title: '团队设置',
+    content: '在这里管理团队成员、邀请新成员加入，以及配置团队设置',
+    placement: 'right',
+  },
+];
+
+const JOYRIDE_STYLES = {
+  options: {
+    arrowColor: '#fff',
+    backgroundColor: '#fff',
+    overlayColor: 'rgba(0, 0, 0, 0.6)',
+    primaryColor: '#001C3D',
+    textColor: '#334155',
+    spotlightShadow: '0 0 15px rgba(0, 0, 0, 0.3)',
+    width: 380,
+    zIndex: 10000,
+  },
+  buttonNext: { backgroundColor: '#001C3D', fontSize: '14px', fontWeight: 500, padding: '8px 16px', borderRadius: '8px' },
+  buttonBack: { color: '#64748B', marginRight: 'auto', fontSize: '14px' },
+  buttonSkip: { color: '#94A3B8', fontSize: '14px' },
+  tooltip: { borderRadius: '12px', padding: '20px' },
+  tooltipTitle: { fontSize: '18px', fontWeight: 600, marginBottom: '8px' },
+  tooltipContent: { fontSize: '14px', lineHeight: '1.6' },
+};
+
+const LOCALE = { back: '上一步', close: '关闭', last: '开始使用', next: '下一步', skip: '跳过引导' };
 
 interface Props { onComplete: () => void; }
 
-const steps = [
-  { title: '创建任务', desc: '点击右上角「新建任务」按钮，输入标题后可使用 AI 自动填充描述和子任务', icon: '📝' },
-  { title: '拖拽管理', desc: '将任务卡片拖拽到不同列来更新状态，从「待处理」到「已完成」', icon: '🎯' },
-  { title: '团队协作', desc: '为任务指派负责人，团队成员可实时看到任务变化', icon: '👥' },
-];
-
 export const OnboardingGuide: React.FC<Props> = ({ onComplete }) => {
-  const [step, setStep] = useState(0);
+  const { isRunning, stepIndex, startTour, setStepIndex, completeTour } = useOnboardingStore();
 
-  const handleNext = async () => {
-    if (step < steps.length - 1) setStep(step + 1);
-    else {
+  useEffect(() => { startTour(); }, [startTour]);
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isRunning) {
+        await userApi.completeOnboarding();
+        completeTour();
+        onComplete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isRunning, completeTour, onComplete]);
+
+  const handleCallback = useCallback(async (data: CallBackProps) => {
+    const { action, index, status, type } = data;
+
+    if ([EVENTS.STEP_AFTER, EVENTS.TARGET_NOT_FOUND].includes(type as typeof EVENTS.STEP_AFTER)) {
+      setStepIndex(index + (action === ACTIONS.PREV ? -1 : 1));
+    }
+
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as typeof STATUS.FINISHED)) {
       await userApi.completeOnboarding();
+      completeTour();
       onComplete();
     }
-  };
-
-  const handleSkip = async () => {
-    await userApi.completeOnboarding();
-    onComplete();
-  };
+  }, [setStepIndex, completeTour, onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-8 mx-4">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-2">
-            {steps.map((s, i) => (
-              <div key={`step-${s.title}`} className={`w-8 h-1 rounded-full transition-colors ${i <= step ? 'bg-indigo-500' : 'bg-gray-200'}`} />
-            ))}
-          </div>
-          <button onClick={handleSkip} className="text-gray-400 hover:text-gray-600 text-sm">跳过引导</button>
-        </div>
-        <div className="text-center py-8">
-          <div className="text-6xl mb-6">{steps[step].icon}</div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-3">{steps[step].title}</h3>
-          <p className="text-gray-500 text-lg">{steps[step].desc}</p>
-        </div>
-        <div className="flex gap-3">
-          {step > 0 && <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex-1">上一步</Button>}
-          <Button onClick={handleNext} className="flex-1">{step === steps.length - 1 ? '开始使用' : '下一步'}</Button>
-        </div>
-      </div>
-    </div>
+    <Joyride
+      callback={handleCallback}
+      continuous
+      run={isRunning}
+      stepIndex={stepIndex}
+      steps={STEPS}
+      showSkipButton
+      showProgress
+      hideCloseButton={false}
+      scrollToFirstStep
+      disableOverlayClose
+      spotlightPadding={8}
+      styles={JOYRIDE_STYLES}
+      locale={LOCALE}
+    />
   );
 };

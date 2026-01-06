@@ -147,7 +147,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
           {COLUMN_CONFIG.map((col) => {
             const colTasks = getSorted(filtered.filter((t) => t.status === col.id));
             return (
-              <div key={col.id} className="w-[280px] sm:w-[300px] md:w-[320px] lg:flex-1 lg:min-w-[280px] lg:max-w-[400px] flex-shrink-0 lg:flex-shrink flex flex-col">
+              <div key={col.id} id={col.id === TaskStatus.TODO ? 'onboarding-kanban-column' : undefined} className="w-[280px] sm:w-[300px] md:w-[320px] lg:flex-1 lg:min-w-[280px] lg:max-w-[400px] flex-shrink-0 lg:flex-shrink flex flex-col">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-500">{COLUMN_ICONS[col.id]}</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Modal, Badge, Avatar, Card, Select, IconButton } from './ui';
 import { useTeamStore } from '../stores/teamStore';
 import { useAuthStore } from '../stores/authStore';
+import { useOnboardingStore } from '../stores/onboardingStore';
 import { TeamRole } from '../types';
 import { useDialog } from './ConfirmDialog';
 
@@ -10,6 +11,7 @@ interface Props { isOpen: boolean; onClose: () => void; }
 export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
   const { currentTeam, teams, switchTeam, updateMemberRole, removeMember, regenerateCode } = useTeamStore();
   const { user } = useAuthStore();
+  const { startTour, resetTour } = useOnboardingStore();
   const { confirm } = useDialog();
   const [copied, setCopied] = useState(false);
 
@@ -103,7 +105,8 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
-      <div className="p-6 border-t border-slate-100">
+      <div className="p-6 border-t border-slate-100 space-y-2">
+        <Button variant="secondary" onClick={() => { resetTour(); startTour(); onClose(); }} isFullWidth leftIcon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}>重新查看引导</Button>
         <Button variant="ghost" onClick={onClose} isFullWidth>关闭</Button>
       </div>
     </Modal>
