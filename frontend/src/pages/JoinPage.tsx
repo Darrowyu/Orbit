@@ -24,9 +24,14 @@ export const JoinPage: React.FC = () => {
     joinedRef.current = true;
 
     joinByLink(inviteLink)
-      .then((team) => { setTeamName(team?.name || ''); setStatus('success'); setTimeout(() => navigate('/'), 2000); })
+      .then(async (team) => { 
+        setTeamName(team?.name || ''); 
+        setStatus('success'); 
+        await checkAuth();
+        setTimeout(() => navigate('/'), 1500); 
+      })
       .catch((e) => { setStatus('error'); setError(e.response?.data?.message || '邀请链接无效或已过期'); });
-  }, [inviteLink, user, isInitialized, joinByLink, navigate]);
+  }, [inviteLink, user, isInitialized, joinByLink, navigate, checkAuth]);
 
   if (status === 'login') return <LoginModal />;
 
