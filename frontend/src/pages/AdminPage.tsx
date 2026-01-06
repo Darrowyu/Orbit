@@ -118,12 +118,12 @@ export const AdminPage: React.FC = () => {
         </div>
 
         {/* 统计概览 */}
-        {tab === 'stats' && (
-          <div className="space-y-6 animate-fade-in">
+        <div className={tab === 'stats' ? '' : 'hidden'}>
+          <div className="space-y-6">
             {stats && (
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {[{ label: '总用户', value: stats.totalUsers }, { label: '活跃用户', value: stats.activeUsers }, { label: '已禁用', value: stats.disabledUsers }, { label: '团队数', value: stats.totalTeams }, { label: '任务数', value: stats.totalTasks }].map((s, i) => (
-                  <div key={s.label} className="minimal-card p-5 animate-fade-in-up" style={{ animationDelay: `${i * 30}ms` }}>
+                {[{ label: '总用户', value: stats.totalUsers }, { label: '活跃用户', value: stats.activeUsers }, { label: '已禁用', value: stats.disabledUsers }, { label: '团队数', value: stats.totalTeams }, { label: '任务数', value: stats.totalTasks }].map((s) => (
+                  <div key={s.label} className="minimal-card p-5">
                     <div className="text-2xl font-semibold text-neutral-900 mb-1">{s.value}</div>
                     <div className="text-sm text-neutral-400">{s.label}</div>
                   </div>
@@ -150,28 +150,30 @@ export const AdminPage: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* 用户管理 */}
-        {tab === 'users' && <UserManagement users={users} user={user} total={total} loading={usersLoading} page={page} search={search} statusFilter={statusFilter} setPage={setPage} setSearch={setSearch} setStatusFilter={setStatusFilter} handleToggleStatus={handleToggleStatus} openPwdModal={openPwdModal} handleSetAdmin={handleSetAdmin} handleDelete={handleDelete} />}
+        <div className={tab === 'users' ? '' : 'hidden'}>
+          <UserManagement users={users} user={user} total={total} loading={usersLoading} page={page} search={search} statusFilter={statusFilter} setPage={setPage} setSearch={setSearch} setStatusFilter={setStatusFilter} handleToggleStatus={handleToggleStatus} openPwdModal={openPwdModal} handleSetAdmin={handleSetAdmin} handleDelete={handleDelete} />
+        </div>
 
         {/* 团队管理 */}
-        {tab === 'teams' && <AdminTeamList />}
+        <div className={tab === 'teams' ? '' : 'hidden'}><AdminTeamList /></div>
 
         {/* 项目管理 */}
-        {tab === 'projects' && <AdminProjectList />}
+        <div className={tab === 'projects' ? '' : 'hidden'}><AdminProjectList /></div>
 
         {/* 任务监控 */}
-        {tab === 'tasks' && <AdminTaskMonitor />}
+        <div className={tab === 'tasks' ? '' : 'hidden'}><AdminTaskMonitor /></div>
 
         {/* 操作审计 */}
-        {tab === 'audit' && <AdminAuditLog />}
+        <div className={tab === 'audit' ? '' : 'hidden'}><AdminAuditLog /></div>
 
         {/* 登录日志 */}
-        {tab === 'logs' && <AdminLoginLog />}
+        <div className={tab === 'logs' ? '' : 'hidden'}><AdminLoginLog /></div>
 
         {/* 系统设置 */}
-        {tab === 'settings' && <AdminSettings />}
+        <div className={tab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>
       </div>
 
       {/* 重置密码弹窗 */}

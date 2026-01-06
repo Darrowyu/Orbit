@@ -5,8 +5,8 @@ import { Button, Input, Avatar, Modal, ModalFooter, Select } from '../ui';
 import { adminApi } from '../../services/api';
 
 export const AdminTeamList: React.FC = memo(() => {
-  const { teams, teamsTotal, fetchTeams, transferOwnership, dissolveTeam } = useAdminStore();
-  const [loading, setLoading] = useState(true);
+  const { teams, teamsTotal, fetchTeams, transferOwnership, dissolveTeam, loaded } = useAdminStore();
+  const [loading, setLoading] = useState(!loaded.teams);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [detailModal, setDetailModal] = useState<string | null>(null);
@@ -15,7 +15,12 @@ export const AdminTeamList: React.FC = memo(() => {
   const [teamDetail, setTeamDetail] = useState<{ members: { user: { id: string; name: string; email: string; avatar: string; color: string } }[]; projects: { id: string; name: string; status: string; color: string }[]; _count: { tasks: number } } | null>(null);
   const { confirm } = useDialog();
 
-  useEffect(() => { setLoading(true); fetchTeams({ page, search }).finally(() => setLoading(false)); }, [page, search, fetchTeams]);
+  useEffect(() => { 
+    const isInitial = page === 1 && !search;
+    if (isInitial && loaded.teams) return;
+    setLoading(true); 
+    fetchTeams({ page, search }).finally(() => setLoading(false)); 
+  }, [page, search, fetchTeams, loaded.teams]);
 
   const handleViewDetail = async (id: string) => {
     setDetailModal(id);
