@@ -4,7 +4,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoUtil } from '../common/crypto.util';
-import { AIResponse, UserAiConfig, WorkloadEstimate, TeamMemberInfo, TaskInfo, AssigneeRecommendation, RiskDetection } from './ai.types';
+import { AIResponse, UserAiConfig, WorkloadEstimate, TeamMemberInfo, TaskInfo, AssigneeRecommendation, RiskDetection, GeminiResponse, OpenAICompatibleResponse, ParsedAITaskResponse, ParsedAISubdivideResponse } from './ai.types';
 
 export { AIResponse, UserAiConfig };
 
@@ -62,7 +62,7 @@ export class AiService {
 
     return this.executeWithFallback<AIResponse>(
       prompt,
-      (json) => { const j = json as { description: string; subtasks: string[]; priority: string }; return { description: j.description, subtasks: j.subtasks, priority: j.priority as 'LOW' | 'MEDIUM' | 'HIGH' }; },
+      (json) => { const j = json as ParsedAITaskResponse; return { description: j.description, subtasks: j.subtasks, priority: j.priority as 'LOW' | 'MEDIUM' | 'HIGH' }; },
       this.localFallbackTaskDetails(title),
       userConfig
     );
@@ -76,7 +76,7 @@ export class AiService {
 
     return this.executeWithFallback<string[]>(
       prompt,
-      (json) => (json as { steps?: string[] }).steps || ['AI正在休息，请手动添加步骤'],
+      (json) => (json as ParsedAISubdivideResponse).steps || ['AI正在休息，请手动添加步骤'],
       ['调研现状', '制定方案', '执行实施', '验收确认'],
       userConfig
     );
@@ -172,7 +172,7 @@ export class AiService {
   }
 
   // 根据用户配置调用对应的AI
-  private async callWithUserConfig(prompt: string, config: UserAiConfig): Promise<any> {
+  private async callWithUserConfig(prompt: string, config: UserAiConfig): Promise<unknown> {
     if (config.aiProvider === 'gemini') {
       return this.callGemini(prompt, config.aiApiKey!);
     } else {
@@ -211,7 +211,7 @@ export class AiService {
   // =========================================================================================
 
   // 1. Gemini Provider
-  private async callGemini(prompt: string, apiKey: string): Promise<any> {
+  private async callGemini(prompt: string, apiKey: string): Promise<unknown> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
@@ -223,13 +223,13 @@ export class AiService {
 
     if (!response.ok) throw new Error(`Gemini API Error: ${response.statusText}`);
 
-    const data = await response.json() as any;
+    const data = await response.json() as GeminiResponse;
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     return this.extractJSON(text);
   }
 
   // 2. OpenAI Compatible Provider (DeepSeek, Kimi, OpenAI, etc.)
-  private async callOpenAICompatible(prompt: string, baseUrl: string, apiKey: string, modelName: string): Promise<any> {
+  private async callOpenAICompatible(prompt: string, baseUrl: string, apiKey: string, modelName: string): Promise<unknown> {
     const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
     const response = await fetch(url, {
@@ -248,7 +248,7 @@ export class AiService {
 
     if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
 
-    const data = await response.json() as any;
+    const data = await response.json() as OpenAICompatibleResponse;
     const text = data?.choices?.[0]?.message?.content || '';
     return this.extractJSON(text);
   }

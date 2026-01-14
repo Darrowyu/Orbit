@@ -54,3 +54,32 @@ export interface Task {
   dependsOn: string[];
   createdAt: string;
 }
+
+// 带标签的任务返回类型
+export interface TaskWithLabels extends Task {
+  labels: Array<{ id: string; name: string; color: string }>;
+  archivedAt?: string | null;
+  isArchived?: boolean;
+  milestoneId?: string;
+}
+
+// 任务数据库实体类型（Prisma返回）
+export interface TaskDbEntity {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  assigneeId?: string | null;
+  projectId?: string | null;
+  teamId: string;
+  dueDate: Date | null;
+  dependsOn: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  isArchived: boolean;
+  archivedAt: Date | null;
+  milestoneId?: string | null;
+  subtasks?: Array<{ id: string; title: string; completed: boolean; assigneeId?: string | null }>;
+  labels?: Array<{ label: { id: string; name: string; color: string } }>;
+}

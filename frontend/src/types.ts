@@ -190,3 +190,16 @@ export interface Notification {
   createdAt: string;
 }
 
+// 创建/更新任务时的数据传输对象
+export interface TaskCreateData {
+  title: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: Priority;
+  assigneeId?: string;
+  projectId?: string;
+  subtasks?: Subtask[];
+  dueDate?: string | null;
+  dependsOn?: string[];
+  labelIds?: string[];
+}

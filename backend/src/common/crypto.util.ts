@@ -6,7 +6,8 @@ const AUTH_TAG_LENGTH = 16;
 
 export class CryptoUtil {
   private static getKey(): Buffer {
-    const secret = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'default-key-change-me';
+    const secret = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET;
+    if (!secret) throw new Error('ENCRYPTION_KEY or JWT_SECRET must be configured'); // 强制要求配置密钥
     return crypto.scryptSync(secret, 'salt', 32); // 派生32字节密钥
   }
 

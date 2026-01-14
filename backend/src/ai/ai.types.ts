@@ -30,6 +30,8 @@ export interface TaskInfo {
   title: string;
   status: string;
   assigneeId?: string;
+  dueDate?: string | null;
+  priority?: string;
 }
 
 export interface AssigneeRecommendation {
@@ -43,4 +45,33 @@ export interface RiskDetection {
   riskLevel: 'high' | 'medium' | 'low';
   reasons: string[];
   suggestions: string[];
+}
+
+// Gemini API 响应类型
+export interface GeminiResponse {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  error?: { message: string; code: number };
+}
+
+// OpenAI 兼容 API 响应类型
+export interface OpenAICompatibleResponse {
+  choices?: Array<{
+    message?: { content?: string; role?: string };
+    finish_reason?: string;
+  }>;
+  error?: { message: string; type: string };
+}
+
+// AI 原始 JSON 解析结果
+export interface ParsedAITaskResponse {
+  description: string;
+  subtasks: string[];
+  priority: string;
+}
+
+export interface ParsedAISubdivideResponse {
+  steps?: string[];
 }
