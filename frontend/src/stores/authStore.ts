@@ -79,3 +79,7 @@ export const useAuthStore = create<AuthStore>()(
     { name: 'orbit-auth', partialize: (state) => ({ token: state.token }) }
   )
 );
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

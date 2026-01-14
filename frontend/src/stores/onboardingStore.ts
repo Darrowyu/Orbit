@@ -27,3 +27,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
     { name: 'orbit-onboarding' }
   )
 );
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

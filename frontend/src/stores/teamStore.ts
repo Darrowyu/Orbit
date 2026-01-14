@@ -93,3 +93,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ currentTeam: data });
   },
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
