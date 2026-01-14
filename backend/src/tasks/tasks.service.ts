@@ -117,7 +117,7 @@ export class TasksService {
   }
 
   async create(dto: CreateTaskDto, teamId: string, operatorId: string) {
-    const { subtasks, dueDate, ...data } = dto;
+    const { subtasks, dueDate, labelIds, ...data } = dto;
     await this.validateProjectAndMilestone(dto.projectId, (dto as any).milestoneId, teamId, dto.assigneeId);
     if (dto.dependsOn?.length) {
       const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
@@ -130,14 +130,18 @@ export class TasksService {
         dueDate: dueDate ? new Date(dueDate) : null,
         subtasks: subtasks?.length ? { create: subtasks.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId })) } : undefined,
       },
-      include: { subtasks: true },
+      include: { subtasks: true, labels: { include: { label: true } } },
     });
+    if (labelIds?.length) { // 关联标签
+      await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId: task.id, labelId })), skipDuplicates: true });
+    }
     if (task.assigneeId && task.assigneeId !== operatorId) {
       const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
       await this.notifications.notifyTaskAssigned(task.title, task.assigneeId, operator?.name || '某人');
     }
     await this.audit.log({ action: 'CREATE', entityType: 'TASK', entityId: task.id, userId: operatorId, teamId, newValue: { title: task.title, status: task.status, priority: task.priority } });
-    return this.format(task);
+    const result = await this.prisma.task.findUnique({ where: { id: task.id }, include: { subtasks: true, labels: { include: { label: true } } } });
+    return { ...this.format(result!), labels: (result as any).labels?.map((tl: any) => tl.label) };
   }
 
   async update(id: string, dto: UpdateTaskDto, operatorId: string) {
@@ -155,15 +159,14 @@ export class TasksService {
     if (dto.projectId !== undefined || dto.assigneeId || (dto as any).milestoneId) {
       await this.validateProjectAndMilestone(targetProjectId || undefined, (dto as any).milestoneId, oldTask.teamId, dto.assigneeId);
     }
-    const { subtasks, dueDate, ...data } = dto;
+    const { subtasks, dueDate, labelIds, ...data } = dto;
     if (subtasks) {
       const existingIds = oldTask.subtasks.map(s => s.id);
       const newIds = subtasks.map(s => s.id);
       const toDelete = existingIds.filter(existId => !newIds.includes(existId));
       const toCreate = subtasks.filter(s => !existingIds.includes(s.id));
       const toUpdate = subtasks.filter(s => existingIds.includes(s.id));
-      // 使用事务批量操作，消除 N+1 问题
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx) => { // 使用事务批量操作，消除 N+1 问题
         if (toDelete.length) await tx.subtask.deleteMany({ where: { id: { in: toDelete } } });
         if (toCreate.length) await tx.subtask.createMany({ data: toCreate.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId, taskId: id })) });
         if (toUpdate.length) {
@@ -171,10 +174,16 @@ export class TasksService {
         }
       });
     }
+    if (labelIds !== undefined) { // 更新标签关联
+      await this.prisma.taskLabel.deleteMany({ where: { taskId: id } });
+      if (labelIds.length) {
+        await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId: id, labelId })), skipDuplicates: true });
+      }
+    }
     const task = await this.prisma.task.update({
       where: { id },
       data: { ...data, dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined },
-      include: { subtasks: true },
+      include: { subtasks: true, labels: { include: { label: true } } },
     });
     const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
     const operatorName = operator?.name || '某人';
@@ -196,7 +205,7 @@ export class TasksService {
       oldValue: { title: oldTask.title, status: oldTask.status, priority: oldTask.priority, assigneeId: oldTask.assigneeId },
       newValue: { title: task.title, status: task.status, priority: task.priority, assigneeId: task.assigneeId }
     });
-    return this.format(task);
+    return { ...this.format(task), labels: (task as any).labels?.map((tl: any) => tl.label) };
   }
 
   async remove(id: string, operatorId?: string) {
