@@ -28,7 +28,7 @@ type ViewMode = 'kanban' | 'calendar' | 'gantt';
 const App: React.FC = () => {
   const { user, checkAuth, logout, updateUser, isInitialized } = useAuthStore();
   const { tasks, archivedTasks, fetchTasks, fetchArchivedTasks, createTask, updateTask, deleteTask, moveTask, toggleSubtask, assignSubtask, archiveTask, restoreTask } = useTaskStore();
-  const { members, fetchTeams, fetchMembers } = useTeamStore();
+  const { members, currentTeam, fetchTeams, fetchMembers } = useTeamStore();
   const { projects, currentProject, fetchProjects, fetchArchivedProjects, setCurrentProject, createProject, updateProject, archiveProject, restoreProject, deleteProject, addMember, updateMember, removeMember } = useProjectStore();
   const { isRunning: showOnboardingTour } = useOnboardingStore();
   const { confirm, alert } = useDialog();
@@ -282,6 +282,7 @@ const App: React.FC = () => {
         allTasks={tasks}
         projects={projects}
         currentProjectId={currentProject?.id}
+        myRole={currentTeam?.members.find(m => m.user.id === user?.id)?.role}
       />
 
       <CreateProjectModal

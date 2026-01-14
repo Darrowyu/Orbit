@@ -121,6 +121,13 @@ export class TasksService {
 
   async create(dto: CreateTaskDto, teamId: string, operatorId: string) {
     const { subtasks, dueDate, labelIds, ...data } = dto;
+    // 验证权限：普通成员只能指定自己为负责人
+    if (dto.assigneeId && dto.assigneeId !== operatorId) {
+      const membership = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: operatorId, teamId } } });
+      if (!membership || membership.role === 'member') {
+        throw new BadRequestException('普通成员只能将任务指派给自己');
+      }
+    }
     await this.validateProjectAndMilestone(dto.projectId, (dto as any).milestoneId, teamId, dto.assigneeId);
     if (dto.dependsOn?.length) {
       const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
@@ -145,6 +152,13 @@ export class TasksService {
   async update(id: string, dto: UpdateTaskDto, operatorId: string) {
     const oldTask = await this.prisma.task.findUnique({ where: { id }, include: { subtasks: true } });
     if (!oldTask) throw new NotFoundException('任务不存在');
+    // 验证权限：普通成员只能将任务指派给自己
+    if (dto.assigneeId && dto.assigneeId !== operatorId && dto.assigneeId !== oldTask.assigneeId) {
+      const membership = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: operatorId, teamId: oldTask.teamId } } });
+      if (!membership || membership.role === 'member') {
+        throw new BadRequestException('普通成员只能将任务指派给自己');
+      }
+    }
     if (dto.status && dto.status !== oldTask.status) {
       const depCheck = await this.validateDependencies(id, dto.status, oldTask.teamId);
       if (!depCheck.valid) throw new BadRequestException(depCheck.error);

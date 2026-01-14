@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Priority, Subtask, User, Project } from '../types';
+import { Task, TaskStatus, Priority, Subtask, User, Project, TeamRole } from '../types';
 import { aiApi } from '../services/api';
 import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
@@ -16,12 +16,14 @@ interface Props {
   allTasks?: Task[];
   projects?: Project[];
   currentProjectId?: string | null;
+  myRole?: TeamRole; // 当前用户在团队中的角色
 }
 
 interface DraftSubtask { id: string; title: string; assigneeId?: string; }
 
-export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [], projects = [], currentProjectId }) => {
+export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, teamMembers, initialData, allTasks = [], projects = [], currentProjectId, myRole }) => {
   const { user } = useAuthStore();
+  const canAssignOthers = myRole === 'owner' || myRole === 'admin'; // 只有所有者/管理员可以指定他人
   const { fetchLabels } = useLabelStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -48,12 +50,14 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
         setProjectId(initialData.projectId || '');
         setSelectedLabelIds(initialData.labels?.map((l) => l.id) || []);
       } else {
-        setTitle(''); setDescription(''); setPriority(Priority.MEDIUM); setSubtasks([]); setAssigneeId(teamMembers[0]?.id || ''); setDueDate(''); setDependsOn([]);
+        setTitle(''); setDescription(''); setPriority(Priority.MEDIUM); setSubtasks([]);
+        setAssigneeId(canAssignOthers ? (teamMembers[0]?.id || '') : (user?.id || '')); // 普通成员默认自己
+        setDueDate(''); setDependsOn([]);
         setProjectId(currentProjectId || '');
         setSelectedLabelIds([]);
       }
     }
-  }, [isOpen, initialData, teamMembers, currentProjectId, fetchLabels]);
+  }, [isOpen, initialData, teamMembers, currentProjectId, fetchLabels, canAssignOthers, user?.id]);
 
   if (!isOpen) return null;
   const handleAiAssist = async () => {
@@ -101,7 +105,14 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
           <div><label className="block text-sm font-medium text-slate-700 mb-1">描述</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-[#001C3D] focus:ring-[#001C3D]/20 sm:text-sm border p-2.5 transition-all" placeholder="任务详细说明..." /></div>
           <div className="grid grid-cols-2 gap-4">
             <Select label="优先级" value={priority} onChange={(e) => setPriority(e.target.value as Priority)} options={[{ value: Priority.LOW, label: '低' }, { value: Priority.MEDIUM, label: '中' }, { value: Priority.HIGH, label: '高' }]} />
-            <Select label="负责人" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} options={teamMembers.map((m) => ({ value: m.id, label: `${m.avatar} ${m.name}` }))} />
+            {canAssignOthers ? (
+              <Select label="负责人" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} options={teamMembers.map((m) => ({ value: m.id, label: `${m.avatar} ${m.name}` }))} />
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">负责人</label>
+                <div className="px-3 py-2 bg-slate-50 rounded-xl text-sm text-slate-600">{user?.avatar} {user?.name}（自己）</div>
+              </div>
+            )}
           </div>
           {projects.length > 0 && (
             <Select
