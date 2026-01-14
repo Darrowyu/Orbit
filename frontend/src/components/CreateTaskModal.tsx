@@ -89,8 +89,8 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={initialData ? '编辑任务' : '创建新任务'} size="lg">
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+      <form onSubmit={handleSubmit} className="flex flex-col -m-6">
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">任务标题</label>
             <div className="flex gap-2">
