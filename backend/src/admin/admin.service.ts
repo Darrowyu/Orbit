@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { validatePassword } from '../common/validators';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -49,9 +50,7 @@ export class AdminService {
   async resetPassword(id: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('用户不存在');
-    if (!newPassword || newPassword.length < 8) throw new ForbiddenException('密码长度至少8位');
-    if (!/[A-Za-z]/.test(newPassword)) throw new ForbiddenException('密码必须包含字母');
-    if (!/[0-9]/.test(newPassword)) throw new ForbiddenException('密码必须包含数字');
+    validatePassword(newPassword);
     await this.prisma.user.update({ where: { id }, data: { password: await bcrypt.hash(newPassword, 10) } });
     return { success: true };
   }

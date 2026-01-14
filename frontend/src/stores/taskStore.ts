@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Task, TaskStatus } from '../types';
 import { taskApi } from '../services/api';
 import { emitTaskUpdate, emitTaskDelete } from '../services/socket';
+import { getErrorMessage } from '../utils/error';
 
 interface Pagination {
   page: number;
@@ -107,9 +108,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
       emitTaskUpdate(updated);
       return { success: true, error: '' };
-    } catch (error: any) {
+    } catch (error) {
       set({ tasks: previousTasks }); // 回滚
-      return { success: false, error: error.response?.data?.message || '操作失败' };
+      return { success: false, error: getErrorMessage(error) };
     }
   },
 

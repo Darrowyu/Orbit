@@ -3,6 +3,7 @@ import { TimeEntry } from '../types';
 import { timeEntryApi } from '../services/api';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
+import { getErrorMessage } from '../utils/error';
 
 interface TimeTrackerProps {
   taskId: string;
@@ -64,8 +65,8 @@ export const TimeTracker: React.FC<TimeTrackerProps> = (props) => {
     try {
       const { data } = await timeEntryApi.start(taskId);
       setRunning(data);
-    } catch (e: any) {
-      alert(e.response?.data?.message || '启动失败');
+    } catch (e) {
+      alert(getErrorMessage(e, '启动失败'));
     } finally { setStarting(false); }
   };
 
@@ -75,8 +76,8 @@ export const TimeTracker: React.FC<TimeTrackerProps> = (props) => {
       const { data } = await timeEntryApi.stop(running.id);
       setRunning(null);
       setEntries(es => [data, ...es]);
-    } catch (e: any) {
-      alert(e.response?.data?.message || '停止失败');
+    } catch (e) {
+      alert(getErrorMessage(e, '停止失败'));
     }
   };
 

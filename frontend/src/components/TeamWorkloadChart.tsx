@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { reportApi, TeamWorkload } from '../services/api';
 import { Avatar } from './ui/Avatar';
+import { STATUS_COLORS_HEX } from '../constants/status';
 
 export const TeamWorkloadChart: React.FC = () => {
   const [data, setData] = useState<TeamWorkload[]>([]);
@@ -17,8 +18,6 @@ export const TeamWorkloadChart: React.FC = () => {
 
   if (loading) return <div className="h-[200px] flex items-center justify-center text-slate-400">加载中...</div>;
   if (data.length === 0) return <div className="h-[200px] flex items-center justify-center text-slate-400">暂无数据</div>;
-
-  const statusColors = { TODO: '#94a3b8', IN_PROGRESS: '#3b82f6', REVIEW: '#f59e0b', DONE: '#22c55e' };
 
   return (
     <div className="bg-white rounded-2xl p-4 border border-slate-100">
@@ -37,7 +36,7 @@ export const TeamWorkloadChart: React.FC = () => {
                   if (count === 0) return null;
                   const width = (count / w.total) * 100;
                   return (
-                    <div key={status} style={{ width: `${width}%`, backgroundColor: statusColors[status as keyof typeof statusColors] }} title={`${status}: ${count}`} />
+                    <div key={status} style={{ width: `${width}%`, backgroundColor: STATUS_COLORS_HEX[status] }} title={`${status}: ${count}`} />
                   );
                 })}
               </div>
