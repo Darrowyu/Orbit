@@ -107,11 +107,16 @@ const App: React.FC = () => {
   }, [createTask, updateTask, tasks]);
 
   const handleSaveTask = useCallback(async (data: Partial<Task>) => {
-    if (editingTask) await updateTask(editingTask.id, data);
-    else await createTask(data);
-    setIsModalOpen(false);
-    setEditingTask(null);
-  }, [editingTask, updateTask, createTask]);
+    try {
+      if (editingTask) await updateTask(editingTask.id, data);
+      else await createTask(data);
+      setIsModalOpen(false);
+      setEditingTask(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '操作失败';
+      await alert({ title: '保存失败', message: msg, type: 'danger' });
+    }
+  }, [editingTask, updateTask, createTask, alert]);
 
   const handleEdit = useCallback((task: Task) => { setEditingTask(task); setIsModalOpen(true); }, []);
 

@@ -23,6 +23,7 @@ export class CreateTaskDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SubtaskDto) subtasks?: SubtaskDto[];
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) dependsOn?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) labelIds?: string[];
 }
 
 export class UpdateTaskDto {
@@ -35,6 +36,7 @@ export class UpdateTaskDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SubtaskDto) subtasks?: SubtaskDto[];
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) dependsOn?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) labelIds?: string[];
 }
 
 // WebSocket 传输用类型
