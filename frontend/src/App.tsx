@@ -112,9 +112,9 @@ const App: React.FC = () => {
       else await createTask(data);
       setIsModalOpen(false);
       setEditingTask(null);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '操作失败';
-      await alert({ title: '保存失败', message: msg, type: 'danger' });
+    } catch (err) {
+      const { getErrorMessage } = await import('./utils/error');
+      await alert({ title: '保存失败', message: getErrorMessage(err), type: 'danger' });
     }
   }, [editingTask, updateTask, createTask, alert]);
 

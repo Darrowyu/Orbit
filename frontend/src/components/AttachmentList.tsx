@@ -3,6 +3,7 @@ import { Attachment } from '../types';
 import { attachmentApi } from '../services/api';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { getErrorMessage } from '../utils/error';
 
 interface AttachmentListProps {
   taskId: string;
@@ -40,8 +41,8 @@ export const AttachmentList: React.FC<AttachmentListProps> = ({ taskId, attachme
     try {
       const { data } = await attachmentApi.upload(taskId, file);
       onUpdate([data, ...attachments]);
-    } catch (e: any) {
-      alert(e.response?.data?.message || '上传失败');
+    } catch (e) {
+      alert(getErrorMessage(e, '上传失败'));
     } finally { 
       setUploading(false); 
       if (fileRef.current) fileRef.current.value = '';

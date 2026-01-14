@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { validatePassword } from '../common/validators';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
@@ -13,12 +14,6 @@ const LOGIN_LOCKOUT_MINUTES = 15;
 export class AuthService {
   constructor(private users: UsersService, private jwt: JwtService, private prisma: PrismaService) { }
 
-  private validatePassword(password: string): void {
-    if (password.length < 8) throw new BadRequestException('密码长度至少8位');
-    if (!/[A-Za-z]/.test(password)) throw new BadRequestException('密码必须包含字母');
-    if (!/[0-9]/.test(password)) throw new BadRequestException('密码必须包含数字');
-  }
-
   private async checkLoginAttempts(identifier: string): Promise<void> {
     const since = new Date(Date.now() - LOGIN_LOCKOUT_MINUTES * 60 * 1000);
     const recentFails = await this.prisma.loginLog.count({
@@ -32,7 +27,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const exists = await this.users.findByEmail(dto.email);
     if (exists) throw new ConflictException('邮箱已被注册');
-    this.validatePassword(dto.password);
+    validatePassword(dto.password);
     const hash = await bcrypt.hash(dto.password, 10);
     const avatars = ['😊', '😎', '🤓', '🧐', '🤖', '👻', '🐱', '🐶']; // 使用简单emoji避免组合字符显示问题
     const colors = ['bg-blue-100 text-blue-700', 'bg-pink-100 text-pink-700', 'bg-green-100 text-green-700', 'bg-purple-100 text-purple-700', 'bg-orange-100 text-orange-700'];

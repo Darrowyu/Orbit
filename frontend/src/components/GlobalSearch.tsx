@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Input } from './ui/Input';
 import { searchApi, SearchResult } from '../services/api';
 import { Badge } from './ui/Badge';
+import { STATUS_LABELS, STATUS_BADGE_VARIANTS } from '../constants/status';
 
 interface GlobalSearchProps {
   onSelectTask?: (taskId: string) => void;
@@ -55,8 +56,6 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelectTask, onSele
   }, []);
 
   const hasResults = results && (results.tasks.length || results.projects.length || results.comments.length);
-  const statusMap: Record<string, 'default' | 'primary' | 'warning' | 'success'> = { TODO: 'default', IN_PROGRESS: 'primary', REVIEW: 'warning', DONE: 'success' };
-  const statusLabels: Record<string, string> = { TODO: '待办', IN_PROGRESS: '进行中', REVIEW: '审核', DONE: '完成' };
 
   return (
     <div ref={wrapperRef} className="relative w-full max-w-md">
@@ -80,7 +79,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelectTask, onSele
               {results.tasks.map((t) => (
                 <button key={t.id} onClick={() => { onSelectTask?.(t.id); setIsOpen(false); setQuery(''); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg flex items-center justify-between group">
                   <span className="text-sm text-slate-700 truncate flex-1">{t.title}</span>
-                  <Badge variant={statusMap[t.status]} size="sm">{statusLabels[t.status]}</Badge>
+                  <Badge variant={STATUS_BADGE_VARIANTS[t.status]} size="sm">{STATUS_LABELS[t.status]}</Badge>
                 </button>
               ))}
             </div>
