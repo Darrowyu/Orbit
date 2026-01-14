@@ -8,8 +8,8 @@ export class UsersService {
   constructor(private prisma: PrismaService) { }
 
   findByEmail(email: string) { return this.prisma.user.findUnique({ where: { email } }); }
-  findByEmailOrName(identifier: string) { // 支持邮箱或用户名登录
-    return this.prisma.user.findFirst({ where: { OR: [{ email: identifier }, { name: identifier }] } });
+  findByEmailOrName(identifier: string) { // 支持邮箱或用户名登录（大小写不敏感）
+    return this.prisma.user.findFirst({ where: { OR: [{ email: { equals: identifier, mode: 'insensitive' } }, { name: { equals: identifier, mode: 'insensitive' } }] } });
   }
   findById(id: string) { return this.prisma.user.findUnique({ where: { id } }); }
   create(data: { email: string; password: string; name: string; avatar: string; color: string }) { return this.prisma.user.create({ data }); }
