@@ -11,6 +11,7 @@ export interface RequestUser { // 请求中的用户信息
   id: string;
   sub: string;
   email: string;
+  currentTeamId?: string | null;
 }
 
 export interface AuthenticatedRequest extends Request { // 带认证的请求

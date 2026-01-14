@@ -126,7 +126,7 @@ export class ReportsService {
   }
 
   async getTimeReport(teamId: string, startDate?: Date, endDate?: Date) {
-    const where: any = { task: { teamId } };
+    const where: { task: { teamId: string }; startTime?: { gte?: Date; lte?: Date } } = { task: { teamId } };
     if (startDate || endDate) {
       where.startTime = {};
       if (startDate) where.startTime.gte = startDate;

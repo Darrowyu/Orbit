@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
+import { CreateTaskDto, UpdateTaskDto, TaskDbEntity } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+
+interface TaskLabel { label: { id: string; name: string; color: string } }
+export interface FormattedTask { createdAt: string; dueDate: string | null; archivedAt: string | null; [key: string]: unknown }
 
 @Injectable()
 export class TasksService {
@@ -10,8 +13,8 @@ export class TasksService {
 
   private readonly taskInclude = { subtasks: true, labels: { include: { label: true } } } as const;
 
-  private formatWithLabels(task: any) {
-    return { ...this.format(task), labels: task.labels?.map((tl: any) => tl.label) || [] };
+  private formatWithLabels(task: TaskDbEntity & { labels?: TaskLabel[] }): FormattedTask & { labels: Array<{ id: string; name: string; color: string }> } {
+    return { ...this.format(task), labels: task.labels?.map((tl) => tl.label) || [] };
   }
 
   private async validateDependencies(taskId: string, newStatus: string, teamId: string): Promise<{ valid: boolean; error?: string }> {
@@ -128,7 +131,7 @@ export class TasksService {
         throw new BadRequestException('普通成员只能将任务指派给自己');
       }
     }
-    await this.validateProjectAndMilestone(dto.projectId, (dto as any).milestoneId, teamId, dto.assigneeId);
+    await this.validateProjectAndMilestone(dto.projectId, undefined, teamId, dto.assigneeId);
     if (dto.dependsOn?.length) {
       const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
       if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
@@ -168,8 +171,8 @@ export class TasksService {
       if (circleCheck.hasCircle) throw new BadRequestException(`检测到循环依赖：${circleCheck.path?.join(' → ')}`);
     }
     const targetProjectId = dto.projectId !== undefined ? dto.projectId : oldTask.projectId;
-    if (dto.projectId !== undefined || dto.assigneeId || (dto as any).milestoneId) {
-      await this.validateProjectAndMilestone(targetProjectId || undefined, (dto as any).milestoneId, oldTask.teamId, dto.assigneeId);
+    if (dto.projectId !== undefined || dto.assigneeId) {
+      await this.validateProjectAndMilestone(targetProjectId || undefined, undefined, oldTask.teamId, dto.assigneeId);
     }
     const { subtasks, dueDate, labelIds, ...data } = dto;
     if (subtasks) {
@@ -241,7 +244,7 @@ export class TasksService {
     }
   }
 
-  private format(task: { createdAt: Date; dueDate: Date | null; archivedAt: Date | null; [key: string]: unknown }) {
+  private format(task: TaskDbEntity): FormattedTask {
     return { ...task, createdAt: task.createdAt.toISOString(), dueDate: task.dueDate?.toISOString() || null, archivedAt: task.archivedAt?.toISOString() || null };
   }
 }

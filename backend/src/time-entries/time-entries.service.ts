@@ -40,7 +40,7 @@ export class TimeEntriesService {
   }
 
   async getByUser(userId: string, startDate?: Date, endDate?: Date) {
-    const where: any = { userId };
+    const where: { userId: string; startTime?: { gte?: Date; lte?: Date } } = { userId };
     if (startDate || endDate) {
       where.startTime = {};
       if (startDate) where.startTime.gte = startDate;

@@ -132,7 +132,7 @@ export class UsersController {
         body: JSON.stringify({ contents: [{ parts: [{ text: testPrompt }] }] }),
       });
       if (!res.ok) throw new Error(`Gemini API 错误: ${res.statusText}`);
-      const data = await res.json() as any;
+      const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       return data?.candidates?.[0]?.content?.parts?.[0]?.text?.slice(0, 100) || '响应成功';
     } else {
       // OpenAI 兼容格式 (DeepSeek, Kimi, OpenAI, etc.)
@@ -148,7 +148,7 @@ export class UsersController {
         }),
       });
       if (!res.ok) throw new Error(`API 错误: ${res.statusText}`);
-      const data = await res.json() as any;
+      const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
       return data?.choices?.[0]?.message?.content?.slice(0, 100) || '响应成功';
     }
   }

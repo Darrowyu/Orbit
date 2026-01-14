@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Priority, Subtask, User, Project, TeamRole } from '../types';
+import { Task, TaskStatus, Priority, Subtask, User, Project, TeamRole, TaskCreateData } from '../types';
 import { aiApi } from '../services/api';
 import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
@@ -78,12 +78,13 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
       const orig = initialData?.subtasks.find((os) => os.id === t.id);
       return { id: t.id, title: t.title, completed: orig?.completed || false, assigneeId: t.assigneeId };
     });
-    onSubmit({
+    const taskData: TaskCreateData = {
       title, description, status: initialData?.status || TaskStatus.TODO, priority, assigneeId,
       subtasks: formatted, dueDate: dueDate ? new Date(dueDate + 'T23:59:59').toISOString() : null, dependsOn,
       projectId: projectId || undefined,
       labelIds: selectedLabelIds,
-    } as any);
+    };
+    onSubmit(taskData);
     onClose();
   };
 
