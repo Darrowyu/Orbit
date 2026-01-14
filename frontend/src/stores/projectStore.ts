@@ -118,3 +118,7 @@ export const useProjectStore = create<ProjectState>((set, _get) => ({
         }));
     },
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

@@ -168,3 +168,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   },
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

@@ -92,3 +92,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     set({ notifications: [], unreadCount: 0 });
   },
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

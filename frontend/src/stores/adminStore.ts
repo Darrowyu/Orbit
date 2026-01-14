@@ -261,3 +261,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     } catch { /* 静默处理 */ }
   },
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

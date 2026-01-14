@@ -31,3 +31,7 @@ export const useLabelStore = create<LabelState>((set, get) => ({
   removeLabel: (id) => set((s) => ({ labels: s.labels.filter((l) => l.id !== id) })),
   setLoading: (isLoading) => set({ isLoading }),
 }));
+
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
