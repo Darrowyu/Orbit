@@ -55,9 +55,9 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
       
-      <div className={`relative w-full ${sizeStyles[size]} bg-white rounded-2xl shadow-2xl animate-pop-in`}>
+      <div className={`relative w-full ${sizeStyles[size]} max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl animate-pop-in`}>
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between p-6 pb-0">
+          <div className="flex items-start justify-between p-6 pb-0 shrink-0">
             <div>
               {title && <h2 className="text-xl font-semibold text-slate-900">{title}</h2>}
               {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
@@ -75,7 +75,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
         
-        <div className="p-6">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );
