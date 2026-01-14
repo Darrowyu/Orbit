@@ -4,8 +4,7 @@ import { CreateTaskDto, UpdateTaskDto, TaskDbEntity } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
-interface TaskLabel { label: { id: string; name: string; color: string } }
-export interface FormattedTask { createdAt: string; dueDate: string | null; archivedAt: string | null; [key: string]: unknown }
+export interface TaskLabel { label: { id: string; name: string; color: string } }
 
 @Injectable()
 export class TasksService {
@@ -13,8 +12,23 @@ export class TasksService {
 
   private readonly taskInclude = { subtasks: true, labels: { include: { label: true } } } as const;
 
-  private formatWithLabels(task: TaskDbEntity & { labels?: TaskLabel[] }): FormattedTask & { labels: Array<{ id: string; name: string; color: string }> } {
-    return { ...this.format(task), labels: task.labels?.map((tl) => tl.label) || [] };
+  private format(task: TaskDbEntity & { labels?: TaskLabel[] }) {
+    const base = {
+      ...task,
+      createdAt: task.createdAt.toISOString(),
+      dueDate: task.dueDate?.toISOString() || null,
+      archivedAt: task.archivedAt?.toISOString() || null
+    };
+    return task.labels ? { ...base, labels: task.labels.map((tl) => tl.label) } : base;
+  }
+
+  private async validateAssigneePermission(newAssigneeId: string | undefined, currentAssigneeId: string | null | undefined, operatorId: string, teamId: string): Promise<void> {
+    if (!newAssigneeId || newAssigneeId === operatorId || newAssigneeId === currentAssigneeId) return;
+    
+    const membership = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: operatorId, teamId } } });
+    if (!membership || membership.role === 'member') {
+      throw new BadRequestException('普通成员只能将任务指派给自己');
+    }
   }
 
   private async validateDependencies(taskId: string, newStatus: string, teamId: string): Promise<{ valid: boolean; error?: string }> {
@@ -33,16 +47,20 @@ export class TasksService {
   }
 
   private async validateProjectAndMilestone(projectId?: string, milestoneId?: string, teamId?: string, assigneeId?: string): Promise<void> {
+    if (!projectId && !milestoneId) return;
+
     if (projectId) {
       const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { teamId: true, isArchived: true } });
       if (!project) throw new BadRequestException('指定的项目不存在');
       if (teamId && project.teamId !== teamId) throw new BadRequestException('任务只能关联到同一团队的项目');
       if (project.isArchived) throw new BadRequestException('无法将任务关联到已归档的项目');
-      if (assigneeId) { // 验证 assignee 是项目成员
+      
+      if (assigneeId) {
         const isMember = await this.prisma.projectMember.findUnique({ where: { userId_projectId: { userId: assigneeId, projectId } } });
         if (!isMember) throw new BadRequestException('任务负责人必须是项目成员');
       }
     }
+
     if (milestoneId) {
       const milestone = await this.prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
       if (!milestone) throw new BadRequestException('指定的里程碑不存在');
@@ -87,7 +105,7 @@ export class TasksService {
       this.prisma.task.findMany({ where, include: this.taskInclude, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
       this.prisma.task.count({ where })
     ]);
-    return { data: tasks.map(t => this.formatWithLabels(t)), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data: tasks.map(t => this.format(t)), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async findArchived(teamId: string) {
@@ -124,13 +142,7 @@ export class TasksService {
 
   async create(dto: CreateTaskDto, teamId: string, operatorId: string) {
     const { subtasks, dueDate, labelIds, ...data } = dto;
-    // 验证权限：普通成员只能指定自己为负责人
-    if (dto.assigneeId && dto.assigneeId !== operatorId) {
-      const membership = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: operatorId, teamId } } });
-      if (!membership || membership.role === 'member') {
-        throw new BadRequestException('普通成员只能将任务指派给自己');
-      }
-    }
+    await this.validateAssigneePermission(dto.assigneeId, null, operatorId, teamId);
     await this.validateProjectAndMilestone(dto.projectId, undefined, teamId, dto.assigneeId);
     if (dto.dependsOn?.length) {
       const circleCheck = await this.detectCircularDependency('', dto.dependsOn, teamId);
@@ -149,19 +161,14 @@ export class TasksService {
       await this.notifications.notifyTaskAssigned(task.title, task.assigneeId, operator?.name || '某人');
     }
     await this.audit.log({ action: 'CREATE', entityType: 'TASK', entityId: task.id, userId: operatorId, teamId, newValue: { title: task.title, status: task.status, priority: task.priority } });
-    return this.formatWithLabels(task);
+    return this.format(task);
   }
 
   async update(id: string, dto: UpdateTaskDto, operatorId: string) {
     const oldTask = await this.prisma.task.findUnique({ where: { id }, include: { subtasks: true } });
     if (!oldTask) throw new NotFoundException('任务不存在');
-    // 验证权限：普通成员只能将任务指派给自己
-    if (dto.assigneeId && dto.assigneeId !== operatorId && dto.assigneeId !== oldTask.assigneeId) {
-      const membership = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId: operatorId, teamId: oldTask.teamId } } });
-      if (!membership || membership.role === 'member') {
-        throw new BadRequestException('普通成员只能将任务指派给自己');
-      }
-    }
+    
+    await this.validateAssigneePermission(dto.assigneeId, oldTask.assigneeId, operatorId, oldTask.teamId);
     if (dto.status && dto.status !== oldTask.status) {
       const depCheck = await this.validateDependencies(id, dto.status, oldTask.teamId);
       if (!depCheck.valid) throw new BadRequestException(depCheck.error);
@@ -218,7 +225,7 @@ export class TasksService {
       oldValue: { title: oldTask.title, status: oldTask.status, priority: oldTask.priority, assigneeId: oldTask.assigneeId },
       newValue: { title: task.title, status: task.status, priority: task.priority, assigneeId: task.assigneeId }
     });
-    return this.formatWithLabels(task);
+    return this.format(task);
   }
 
   async remove(id: string, operatorId?: string) {
@@ -237,14 +244,13 @@ export class TasksService {
       where: { teamId, dependsOn: { has: deletedTaskId } },
       select: { id: true, dependsOn: true }
     });
-    if (tasksWithDep.length > 0) {
-      await Promise.all(tasksWithDep.map(task =>
-        this.prisma.task.update({ where: { id: task.id }, data: { dependsOn: task.dependsOn.filter(depId => depId !== deletedTaskId) } })
-      ));
-    }
-  }
-
-  private format(task: TaskDbEntity): FormattedTask {
-    return { ...task, createdAt: task.createdAt.toISOString(), dueDate: task.dueDate?.toISOString() || null, archivedAt: task.archivedAt?.toISOString() || null };
+    await Promise.all(
+      tasksWithDep.map(task =>
+        this.prisma.task.update({
+          where: { id: task.id },
+          data: { dependsOn: task.dependsOn.filter(depId => depId !== deletedTaskId) }
+        })
+      )
+    );
   }
 }

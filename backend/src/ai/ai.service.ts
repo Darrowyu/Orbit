@@ -8,49 +8,41 @@ import { AIResponse, UserAiConfig, WorkloadEstimate, TeamMemberInfo, TaskInfo, A
 
 export { AIResponse, UserAiConfig };
 
+const AI_PROVIDER_CONFIG = {
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  moonshot: { baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  zhipu: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+};
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-
-  // 系统级默认配置
   private sysGeminiKey: string;
   private sysBackupKey: string;
   private sysBackupBaseUrl: string;
   private proxyAgent: HttpsProxyAgent<string> | null = null;
 
-  constructor(
-    private config: ConfigService,
-    private prisma: PrismaService // 注入Prisma以读取用户配置
-  ) {
-    // 系统级Gemini配置
+  constructor(private config: ConfigService, private prisma: PrismaService) {
     this.sysGeminiKey = this.config.get('GEMINI_API_KEY') || '';
-    const proxy = this.config.get('HTTPS_PROXY');
-    if (proxy) this.proxyAgent = new HttpsProxyAgent(proxy);
-
-    // 系统级备用配置
     this.sysBackupKey = this.config.get('AI_API_KEY_BACKUP') || '';
     this.sysBackupBaseUrl = this.config.get('AI_BASE_URL_BACKUP') || 'https://api.deepseek.com/v1';
-
+    const proxy = this.config.get('HTTPS_PROXY');
+    if (proxy) this.proxyAgent = new HttpsProxyAgent(proxy);
     this.logger.log('AI Service Initialized.');
   }
 
-  // 获取用户的AI配置（如果有）- 自动解密 API Key
   async getUserAiConfig(userId: string): Promise<UserAiConfig | null> {
     if (!userId) return null;
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.aiApiKey) return null;
     return {
       aiProvider: user.aiProvider,
-      aiApiKey: CryptoUtil.decrypt(user.aiApiKey), // 解密
+      aiApiKey: CryptoUtil.decrypt(user.aiApiKey),
       aiBaseUrl: user.aiBaseUrl,
       aiModelName: user.aiModelName,
     };
   }
-
-
-  // =========================================================================================
-  // 公共入口方法 - 包含自动降级逻辑
-  // =========================================================================================
 
   async generateTaskDetails(title: string, customPrompt?: string, userId?: string): Promise<AIResponse> {
     const userConfig = userId ? await this.getUserAiConfig(userId) : null;
@@ -133,82 +125,37 @@ export class AiService {
     prompt: string,
     parser: (json: unknown) => T,
     localFallback: T,
-    userConfig?: UserAiConfig | null // 用户自定义配置
+    userConfig?: UserAiConfig | null
   ): Promise<T> {
+    const fallbackChain = [
+      { name: 'User Config', fn: async () => userConfig?.aiApiKey ? this.callWithUserConfig(prompt, userConfig) : null },
+      { name: 'System Gemini', fn: async () => this.sysGeminiKey ? this.callGemini(prompt, this.sysGeminiKey) : null },
+      { name: 'System Backup', fn: async () => this.sysBackupKey ? this.callOpenAICompatible(prompt, this.sysBackupBaseUrl, this.sysBackupKey, 'deepseek-chat') : null },
+    ];
 
-    // 优先使用用户自定义配置
-    if (userConfig && userConfig.aiApiKey) {
+    for (const { name, fn } of fallbackChain) {
       try {
-        const res = await this.callWithUserConfig(prompt, userConfig);
-        return parser(res);
+        const res = await fn();
+        if (res) return parser(res);
       } catch (e) {
-        this.logger.warn(`User AI Config failed: ${e.message}. Falling back to system default...`);
+        this.logger.warn(`${name} failed: ${e.message}`);
       }
     }
 
-    // 系统默认 Level 1: Gemini
-    if (this.sysGeminiKey) {
-      try {
-        const res = await this.callGemini(prompt, this.sysGeminiKey);
-        return parser(res);
-      } catch (e) {
-        this.logger.warn(`System Gemini failed: ${e.message}. Trying backup...`);
-      }
-    }
-
-    // 系统默认 Level 2: Backup Provider
-    if (this.sysBackupKey) {
-      try {
-        const res = await this.callOpenAICompatible(prompt, this.sysBackupBaseUrl, this.sysBackupKey, 'deepseek-chat');
-        return parser(res);
-      } catch (e) {
-        this.logger.error(`System Backup failed: ${e.message}. Using local fallback.`);
-      }
-    }
-
-    // Level 3: Local Rule-Based (Offline)
     this.logger.log('Using Local Fallback rules.');
     return localFallback;
   }
 
-  // 根据用户配置调用对应的AI
   private async callWithUserConfig(prompt: string, config: UserAiConfig): Promise<unknown> {
     if (config.aiProvider === 'gemini') {
       return this.callGemini(prompt, config.aiApiKey!);
-    } else {
-      // 所有其他的都当作 OpenAI 兼容格式
-      const baseUrl = config.aiBaseUrl || this.getDefaultBaseUrl(config.aiProvider);
-      const modelName = config.aiModelName || this.getDefaultModel(config.aiProvider);
-      return this.callOpenAICompatible(prompt, baseUrl, config.aiApiKey!, modelName);
     }
+    
+    const providerConfig = AI_PROVIDER_CONFIG[config.aiProvider as keyof typeof AI_PROVIDER_CONFIG];
+    const baseUrl = config.aiBaseUrl || providerConfig?.baseUrl || 'https://api.openai.com/v1';
+    const modelName = config.aiModelName || providerConfig?.model || 'gpt-3.5-turbo';
+    return this.callOpenAICompatible(prompt, baseUrl, config.aiApiKey!, modelName);
   }
-
-  // 获取各服务商的默认 Base URL
-  private getDefaultBaseUrl(provider: string | null): string {
-    switch (provider) {
-      case 'openai': return 'https://api.openai.com/v1';
-      case 'deepseek': return 'https://api.deepseek.com/v1';
-      case 'moonshot': return 'https://api.moonshot.cn/v1';
-      case 'zhipu': return 'https://open.bigmodel.cn/api/paas/v4';
-      default: return 'https://api.openai.com/v1';
-    }
-  }
-
-  // 获取各服务商的默认模型名
-  private getDefaultModel(provider: string | null): string {
-    switch (provider) {
-      case 'openai': return 'gpt-4o-mini';
-      case 'deepseek': return 'deepseek-chat';
-      case 'moonshot': return 'moonshot-v1-8k';
-      case 'zhipu': return 'glm-4-flash';
-      default: return 'gpt-3.5-turbo';
-    }
-  }
-
-
-  // =========================================================================================
-  // Providers 实现
-  // =========================================================================================
 
   // 1. Gemini Provider
   private async callGemini(prompt: string, apiKey: string): Promise<unknown> {
@@ -268,13 +215,11 @@ export class AiService {
     };
   }
 
-  // Helper: JSON Extractor
   private extractJSON(text: string): unknown {
+    const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) return JSON.parse(jsonMatch[0]);
-      return JSON.parse(text);
-    } catch (e) {
+      return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch {
       throw new Error('Failed to parse JSON from AI response');
     }
   }

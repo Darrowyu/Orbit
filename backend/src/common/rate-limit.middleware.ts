@@ -28,8 +28,11 @@ export class RateLimitMiddleware implements NestMiddleware {
 
     if (record.count >= this.maxRequests) {
       const retryAfter = Math.ceil((record.resetTime - now) / 1000);
-      res.setHeader('Retry-After', retryAfter.toString());
-      throw new HttpException({ statusCode: HttpStatus.TOO_MANY_REQUESTS, message: `请求过于频繁，请 ${retryAfter} 秒后重试`, error: 'Too Many Requests' }, HttpStatus.TOO_MANY_REQUESTS);
+      res.setHeader('Retry-After', retryAfter);
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: `请求过于频繁，请 ${retryAfter} 秒后重试`, error: 'Too Many Requests' },
+        HttpStatus.TOO_MANY_REQUESTS
+      );
     }
 
     record.count++;
@@ -38,15 +41,14 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private getKey(req: Request): string {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userId = (req as Request & { user?: { id: string } }).user?.id;
-    return userId ? `user:${userId}` : `ip:${ip}`; // 优先按用户ID限流，否则按IP
+    return userId ? `user:${userId}` : `ip:${req.ip || req.socket.remoteAddress || 'unknown'}`;
   }
 
   private setHeaders(res: Response, remaining: number, resetTime: number): void {
-    res.setHeader('X-RateLimit-Limit', this.maxRequests.toString());
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, remaining).toString());
-    res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
+    res.setHeader('X-RateLimit-Limit', this.maxRequests);
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, remaining));
+    res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000));
   }
 
   private cleanup(): void {
