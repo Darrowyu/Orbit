@@ -48,7 +48,11 @@ export const ProfilePage: React.FC = () => {
   const [avatarCategory, setAvatarCategory] = useState<string>('face');
 
   const { alert } = useDialog();
-  useEffect(() => { userApi.getMyTeams().then(({ data }) => setTeams(data)); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    userApi.getMyTeams().then(({ data }) => { if (!cancelled) setTeams(data); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSaveProfile = async () => {
     setSaving(true);

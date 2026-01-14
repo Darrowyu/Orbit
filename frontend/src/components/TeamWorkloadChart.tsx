@@ -7,14 +7,17 @@ export const TeamWorkloadChart: React.FC = () => {
   const [data, setData] = useState<TeamWorkload[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    try {
-      const { data: res } = await reportApi.getTeamWorkload();
-      setData(res);
-    } finally { setLoading(false); }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    const loadData = async () => {
+      try {
+        const { data: res } = await reportApi.getTeamWorkload();
+        if (!cancelled) setData(res);
+      } finally { if (!cancelled) setLoading(false); }
+    };
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
 
   if (loading) return <div className="h-[200px] flex items-center justify-center text-slate-400">加载中...</div>;
   if (data.length === 0) return <div className="h-[200px] flex items-center justify-center text-slate-400">暂无数据</div>;

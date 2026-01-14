@@ -34,6 +34,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelectTask, onSele
     debounceRef.current = setTimeout(() => doSearch(v), 300);
   };
 
+  useEffect(() => { // 清理 debounce timer
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setIsOpen(false);

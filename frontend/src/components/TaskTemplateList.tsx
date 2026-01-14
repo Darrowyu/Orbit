@@ -18,14 +18,17 @@ export const TaskTemplateList: React.FC<TaskTemplateListProps> = ({ onSelect }) 
   const [form, setForm] = useState({ name: '', title: '', description: '', priority: 'MEDIUM', subtasks: '' });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadTemplates(); }, []);
-
-  const loadTemplates = async () => {
-    try {
-      const { data } = await templateApi.getAll();
-      setTemplates(data);
-    } finally { setLoading(false); }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    const loadTemplates = async () => {
+      try {
+        const { data } = await templateApi.getAll();
+        if (!cancelled) setTemplates(data);
+      } finally { if (!cancelled) setLoading(false); }
+    };
+    loadTemplates();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.title.trim()) return;
