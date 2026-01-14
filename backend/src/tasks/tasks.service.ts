@@ -8,6 +8,12 @@ import { AuditService } from '../audit/audit.service';
 export class TasksService {
   constructor(private prisma: PrismaService, private notifications: NotificationsService, private audit: AuditService) { }
 
+  private readonly taskInclude = { subtasks: true, labels: { include: { label: true } } } as const;
+
+  private formatWithLabels(task: any) {
+    return { ...this.format(task), labels: task.labels?.map((tl: any) => tl.label) || [] };
+  }
+
   private async validateDependencies(taskId: string, newStatus: string, teamId: string): Promise<{ valid: boolean; error?: string }> {
     const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { dependsOn: true } });
     if (!task?.dependsOn?.length) return { valid: true };
@@ -75,13 +81,10 @@ export class TasksService {
     const { includeArchived = false, page = 1, limit = 100, projectId } = options || {};
     const where = { teamId, isArchived: includeArchived ? undefined : false, ...(projectId && { projectId }) };
     const [tasks, total] = await Promise.all([
-      this.prisma.task.findMany({ where, include: { subtasks: true, labels: { include: { label: true } } }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      this.prisma.task.findMany({ where, include: this.taskInclude, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
       this.prisma.task.count({ where })
     ]);
-    return {
-      data: tasks.map(t => ({ ...this.format(t), labels: (t as any).labels?.map((tl: any) => tl.label) })),
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
-    };
+    return { data: tasks.map(t => this.formatWithLabels(t)), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async findArchived(teamId: string) {
@@ -125,23 +128,18 @@ export class TasksService {
     }
     const task = await this.prisma.task.create({
       data: {
-        ...data,
-        teamId,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        ...data, teamId, dueDate: dueDate ? new Date(dueDate) : null,
         subtasks: subtasks?.length ? { create: subtasks.map(s => ({ id: s.id, title: s.title, completed: s.completed || false, assigneeId: s.assigneeId })) } : undefined,
+        labels: labelIds?.length ? { create: labelIds.map(labelId => ({ labelId })) } : undefined,
       },
-      include: { subtasks: true, labels: { include: { label: true } } },
+      include: this.taskInclude,
     });
-    if (labelIds?.length) { // 关联标签
-      await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId: task.id, labelId })), skipDuplicates: true });
-    }
     if (task.assigneeId && task.assigneeId !== operatorId) {
       const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
       await this.notifications.notifyTaskAssigned(task.title, task.assigneeId, operator?.name || '某人');
     }
     await this.audit.log({ action: 'CREATE', entityType: 'TASK', entityId: task.id, userId: operatorId, teamId, newValue: { title: task.title, status: task.status, priority: task.priority } });
-    const result = await this.prisma.task.findUnique({ where: { id: task.id }, include: { subtasks: true, labels: { include: { label: true } } } });
-    return { ...this.format(result!), labels: (result as any).labels?.map((tl: any) => tl.label) };
+    return this.formatWithLabels(task);
   }
 
   async update(id: string, dto: UpdateTaskDto, operatorId: string) {
@@ -174,16 +172,14 @@ export class TasksService {
         }
       });
     }
-    if (labelIds !== undefined) { // 更新标签关联
+    if (labelIds !== undefined) { // 更新标签：先删后建
       await this.prisma.taskLabel.deleteMany({ where: { taskId: id } });
-      if (labelIds.length) {
-        await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId: id, labelId })), skipDuplicates: true });
-      }
+      if (labelIds.length) await this.prisma.taskLabel.createMany({ data: labelIds.map(labelId => ({ taskId: id, labelId })), skipDuplicates: true });
     }
     const task = await this.prisma.task.update({
       where: { id },
       data: { ...data, dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined },
-      include: { subtasks: true, labels: { include: { label: true } } },
+      include: this.taskInclude,
     });
     const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
     const operatorName = operator?.name || '某人';
@@ -205,7 +201,7 @@ export class TasksService {
       oldValue: { title: oldTask.title, status: oldTask.status, priority: oldTask.priority, assigneeId: oldTask.assigneeId },
       newValue: { title: task.title, status: task.status, priority: task.priority, assigneeId: task.assigneeId }
     });
-    return { ...this.format(task), labels: (task as any).labels?.map((tl: any) => tl.label) };
+    return this.formatWithLabels(task);
   }
 
   async remove(id: string, operatorId?: string) {
