@@ -19,10 +19,10 @@ export class AuthService {
     if (!/[0-9]/.test(password)) throw new BadRequestException('密码必须包含数字');
   }
 
-  private async checkLoginAttempts(email: string): Promise<void> {
+  private async checkLoginAttempts(identifier: string): Promise<void> {
     const since = new Date(Date.now() - LOGIN_LOCKOUT_MINUTES * 60 * 1000);
     const recentFails = await this.prisma.loginLog.count({
-      where: { user: { email }, success: false, createdAt: { gte: since } }
+      where: { user: { OR: [{ email: identifier }, { name: identifier }] }, success: false, createdAt: { gte: since } }
     });
     if (recentFails >= LOGIN_ATTEMPT_LIMIT) {
       throw new ForbiddenException(`登录失败次数过多，请 ${LOGIN_LOCKOUT_MINUTES} 分钟后重试`);
@@ -46,11 +46,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
-    await this.checkLoginAttempts(dto.email);
-    const user = await this.users.findByEmail(dto.email);
+    await this.checkLoginAttempts(dto.email); // dto.email 可以是邮箱或用户名
+    const user = await this.users.findByEmailOrName(dto.email);
     const success = user && (await bcrypt.compare(dto.password, user.password));
     if (user) await this.prisma.loginLog.create({ data: { userId: user.id, ip, userAgent, success: !!success } });
-    if (!success) throw new UnauthorizedException('邮箱或密码错误');
+    if (!success) throw new UnauthorizedException('账号或密码错误');
     if (!user.isActive) throw new ForbiddenException('账号已被禁用');
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const token = this.jwt.sign({ sub: user.id, email: user.email });
