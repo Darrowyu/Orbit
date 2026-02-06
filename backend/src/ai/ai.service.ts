@@ -23,13 +23,16 @@ export class AiService {
   private sysBackupBaseUrl: string;
   private proxyAgent: HttpsProxyAgent<string> | null = null;
 
-  constructor(private config: ConfigService, private prisma: PrismaService) {
-    this.sysGeminiKey = this.config.get('GEMINI_API_KEY') || '';
-    this.sysBackupKey = this.config.get('AI_API_KEY_BACKUP') || '';
-    this.sysBackupBaseUrl = this.config.get('AI_BASE_URL_BACKUP') || 'https://api.deepseek.com/v1';
-    const proxy = this.config.get('HTTPS_PROXY');
+  constructor(
+    private config: ConfigService,
+    private prisma: PrismaService
+  ) {
+    this.sysGeminiKey = config.get('GEMINI_API_KEY') || '';
+    this.sysBackupKey = config.get('AI_API_KEY_BACKUP') || '';
+    this.sysBackupBaseUrl = config.get('AI_BASE_URL_BACKUP') || 'https://api.deepseek.com/v1';
+    const proxy = config.get('HTTPS_PROXY');
     if (proxy) this.proxyAgent = new HttpsProxyAgent(proxy);
-    this.logger.log('AI Service Initialized.');
+    this.logger.log('AI Service Initialized');
   }
 
   async getUserAiConfig(userId: string): Promise<UserAiConfig | null> {
@@ -45,51 +48,58 @@ export class AiService {
   }
 
   async generateTaskDetails(title: string, customPrompt?: string, userId?: string): Promise<AIResponse> {
-    const userConfig = userId ? await this.getUserAiConfig(userId) : null;
-
-    const defaultPrompt = `你是一个专业的项目经理。我有一个任务标题："${title}"。请提供：1. 简洁专业的任务描述 2. 3-5个可执行的子任务 3. 推荐优先级(LOW/MEDIUM/HIGH)。必须使用简体中文回复，返回JSON格式：{"description":"...","subtasks":["..."],"priority":"..."}`;
-    const prompt = customPrompt && customPrompt.trim()
-      ? customPrompt.replace(/\{title\}/g, title) + '\n\n必须返回JSON格式：{"description":"...","subtasks":["..."],"priority":"LOW/MEDIUM/HIGH"}'
-      : defaultPrompt;
-
+    const prompt = this.buildTaskPrompt(title, customPrompt);
     return this.executeWithFallback<AIResponse>(
       prompt,
-      (json) => { const j = json as ParsedAITaskResponse; return { description: j.description, subtasks: j.subtasks, priority: j.priority as 'LOW' | 'MEDIUM' | 'HIGH' }; },
+      (json) => this.parseTaskResponse(json as ParsedAITaskResponse),
       this.localFallbackTaskDetails(title),
-      userConfig
+      userId ? await this.getUserAiConfig(userId) : null
     );
   }
 
+  private buildTaskPrompt(title: string, customPrompt?: string): string {
+    const defaultPrompt = `你是一个专业的项目经理。我有一个任务标题："${title}"。请提供：1. 简洁专业的任务描述 2. 3-5个可执行的子任务 3. 推荐优先级(LOW/MEDIUM/HIGH)。必须使用简体中文回复，返回JSON格式：{"description":"...","subtasks":["..."],"priority":"..."}`;
+    
+    if (!customPrompt?.trim()) return defaultPrompt;
+    
+    return customPrompt.replace(/\{title\}/g, title) + '\n\n必须返回JSON格式：{"description":"...","subtasks":["..."],"priority":"LOW/MEDIUM/HIGH"}';
+  }
+
+  private parseTaskResponse(json: ParsedAITaskResponse): AIResponse {
+    return { 
+      description: json.description, 
+      subtasks: json.subtasks, 
+      priority: json.priority as 'LOW' | 'MEDIUM' | 'HIGH' 
+    };
+  }
+
   async subdivideSubtask(subtaskTitle: string, parentContext?: string, userId?: string): Promise<string[]> {
-    const userConfig = userId ? await this.getUserAiConfig(userId) : null;
-
-    const ctx = parentContext ? `\n父任务背景：${parentContext}` : '';
-    const prompt = `你是一个专业的项目经理。请将以下子任务细分为3-5个更具体的可执行步骤：\n\n子任务："${subtaskTitle}"${ctx}\n\n要求：每个步骤要具体可执行，有逻辑顺序。必须使用简体中文回复，返回JSON格式：{"steps":["步骤1","步骤2","步骤3"]}`;
-
+    const prompt = this.buildSubtaskPrompt(subtaskTitle, parentContext);
     return this.executeWithFallback<string[]>(
       prompt,
       (json) => (json as ParsedAISubdivideResponse).steps || ['AI正在休息，请手动添加步骤'],
       ['调研现状', '制定方案', '执行实施', '验收确认'],
-      userConfig
+      userId ? await this.getUserAiConfig(userId) : null
     );
   }
 
-  async estimateWorkload(taskTitle: string, description: string, subtasks: string[], userId?: string): Promise<WorkloadEstimate> {
-    const userConfig = userId ? await this.getUserAiConfig(userId) : null;
+  private buildSubtaskPrompt(subtaskTitle: string, parentContext?: string): string {
+    const ctx = parentContext ? `\n父任务背景：${parentContext}` : '';
+    return `你是一个专业的项目经理。请将以下子任务细分为3-5个更具体的可执行步骤：\n\n子任务："${subtaskTitle}"${ctx}\n\n要求：每个步骤要具体可执行，有逻辑顺序。必须使用简体中文回复，返回JSON格式：{"steps":["步骤1","步骤2","步骤3"]}`;
+  }
 
+  async estimateWorkload(taskTitle: string, description: string, subtasks: string[], userId?: string): Promise<WorkloadEstimate> {
     const prompt = `你是项目管理专家。请评估以下任务的工作量：\n任务：${taskTitle}\n描述：${description}\n子任务：${subtasks.join('、')}\n\n返回JSON：{"hours":数字,"confidence":"high/medium/low","factors":["因素1","因素2"]}`;
     return this.executeWithFallback(
       prompt,
       (json) => json as WorkloadEstimate,
       { hours: 4, confidence: 'low', factors: ['基于历史数据默认估算', 'AI服务暂时不可用'] },
-      userConfig
+      userId ? await this.getUserAiConfig(userId) : null
     );
   }
 
   async recommendAssignee(taskTitle: string, description: string, teamMembers: TeamMemberInfo[], taskHistory: TaskInfo[], userId?: string): Promise<AssigneeRecommendation> {
     if (!teamMembers.length) return { recommendedId: '', reason: '无成员', alternatives: [] };
-    const userConfig = userId ? await this.getUserAiConfig(userId) : null;
-
     const memberInfo = teamMembers.map(m => `${m.name}(ID:${m.id},技能:${m.skills?.join('、') || '未设置'})`).join('；');
     const prompt = `你是团队管理专家。任务："${taskTitle}"\n团队成员：${memberInfo}\n推荐最佳负责人，返回JSON：{"recommendedId":"ID","reason":"理由","alternatives":[]}`;
 
@@ -97,14 +107,12 @@ export class AiService {
       prompt,
       (json) => json as AssigneeRecommendation,
       { recommendedId: teamMembers[0]?.id, reason: '轮询分配（AI服务暂不可用）', alternatives: [] },
-      userConfig
+      userId ? await this.getUserAiConfig(userId) : null
     );
   }
 
   async detectRisks(tasks: TaskInfo[], userId?: string): Promise<RiskDetection[]> {
     if (!tasks.length) return [];
-    const userConfig = userId ? await this.getUserAiConfig(userId) : null;
-
     const taskInfo = tasks.map(t => `ID:${t.id},标题:${t.title},状态:${t.status}`).join('；');
     const prompt = `你是风险管理专家。分析任务风险：\n${taskInfo}\n返回JSON数组：[{"taskId":"ID","riskLevel":"high/medium","reasons":[],"suggestions":[]}]`;
 
@@ -112,14 +120,10 @@ export class AiService {
       prompt,
       (json) => Array.isArray(json) ? json as RiskDetection[] : [],
       [],
-      userConfig
+      userId ? await this.getUserAiConfig(userId) : null
     );
   }
 
-
-  // =========================================================================================
-  // 核心引擎：多级重试与降级 (支持用户配置)
-  // =========================================================================================
 
   private async executeWithFallback<T>(
     prompt: string,
@@ -157,62 +161,56 @@ export class AiService {
     return this.callOpenAICompatible(prompt, baseUrl, config.aiApiKey!, modelName);
   }
 
-  // 1. Gemini Provider
   private async callGemini(prompt: string, apiKey: string): Promise<unknown> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      agent: this.proxyAgent,
-      timeout: 15000
-    });
-
-    if (!response.ok) throw new Error(`Gemini API Error: ${response.statusText}`);
-
+    const response = await this.postJSON(url, { contents: [{ parts: [{ text: prompt }] }] }, 15000);
     const data = await response.json() as GeminiResponse;
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return this.extractJSON(text);
+    return this.extractJSON(data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
   }
 
-  // 2. OpenAI Compatible Provider (DeepSeek, Kimi, OpenAI, etc.)
   private async callOpenAICompatible(prompt: string, baseUrl: string, apiKey: string, modelName: string): Promise<unknown> {
     const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7
-      }),
-      timeout: 20000
-    });
-
-    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
+    const headers = { Authorization: `Bearer ${apiKey}` };
+    const body = { model: modelName, messages: [{ role: 'user', content: prompt }], temperature: 0.7 };
+    const response = await this.postJSON(url, body, 20000, headers);
     const data = await response.json() as OpenAICompatibleResponse;
-    const text = data?.choices?.[0]?.message?.content || '';
-    return this.extractJSON(text);
+    return this.extractJSON(data?.choices?.[0]?.message?.content || '');
   }
 
-  // 3. Local Fallback Generator
-  private localFallbackTaskDetails(title: string): AIResponse {
-    let subtasks = ['准备工作', '核心执行', '检查验收'];
-    if (title.includes('设计')) subtasks = ['收集参考素材', '绘制草图/原型', '视觉设计', '切图导出'];
-    else if (title.includes('开发') || title.includes('实现')) subtasks = ['技术方案设计', '代码编写', '单元测试', '代码审查'];
-    else if (title.includes('测试')) subtasks = ['编写测试用例', '执行测试', '记录Bug', '回归测试'];
-    else if (title.includes('会议')) subtasks = ['准备议程', '发送邀请', '主持会议', '整理纪要'];
+  private async postJSON(url: string, body: object, timeout: number, extraHeaders?: Record<string, string>): Promise<Response> {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      body: JSON.stringify(body),
+      agent: this.proxyAgent,
+      timeout
+    });
+    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+    return response;
+  }
 
+  private readonly fallbackSubtasksMap: Record<string, string[]> = {
+    '设计': ['收集参考素材', '绘制草图/原型', '视觉设计', '切图导出'],
+    '开发': ['技术方案设计', '代码编写', '单元测试', '代码审查'],
+    '实现': ['技术方案设计', '代码编写', '单元测试', '代码审查'],
+    '测试': ['编写测试用例', '执行测试', '记录Bug', '回归测试'],
+    '会议': ['准备议程', '发送邀请', '主持会议', '整理纪要'],
+  };
+
+  private localFallbackTaskDetails(title: string): AIResponse {
+    const subtasks = this.findMatchingSubtasks(title);
     return {
       description: `[离线模式] 该任务 "${title}" 需要进行详细的规划和执行。请团队成员根据实际情况补充细节。`,
-      subtasks: subtasks,
+      subtasks,
       priority: 'MEDIUM'
     };
+  }
+
+  private findMatchingSubtasks(title: string): string[] {
+    for (const [keyword, tasks] of Object.entries(this.fallbackSubtasksMap)) {
+      if (title.includes(keyword)) return tasks;
+    }
+    return ['准备工作', '核心执行', '检查验收'];
   }
 
   private extractJSON(text: string): unknown {
