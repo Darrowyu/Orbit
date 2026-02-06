@@ -43,7 +43,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data } = await taskApi.getAll({ page, limit });
       set({ tasks: data.data, pagination: data.pagination, isLoading: false });
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
       set({ isLoading: false });
     }
   },
@@ -52,8 +53,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data } = await taskApi.getArchived();
       set({ archivedTasks: data });
-    } catch {
-      // Silently ignore errors
+    } catch (error) {
+      console.error('Failed to fetch archived tasks:', error);
     }
   },
 
