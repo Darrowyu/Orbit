@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userApi } from '../services/api';
 import { useDialog } from '../components/ConfirmDialog';
-import { AiConfigPanel } from '../components/AiConfigPanel';
 import { Button, Input, Avatar, Badge } from '../components/ui';
 
 const AVATAR_CATEGORIES = [
@@ -33,7 +32,7 @@ export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [tab, setTab] = useState<'profile' | 'teams' | 'password' | 'ai'>('profile');
+  const [tab, setTab] = useState<'profile' | 'teams' | 'password'>('profile');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [color, setColor] = useState(user?.color || '');
   const [name, setName] = useState(user?.name || '');
@@ -100,7 +99,6 @@ export const ProfilePage: React.FC = () => {
     { key: 'profile', label: '资料' },
     { key: 'teams', label: '团队' },
     { key: 'password', label: '密码' },
-    { key: 'ai', label: 'AI' },
   ] as const;
 
   return (
@@ -236,14 +234,6 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
 
-        {/* AI 设置 */}
-        {tab === 'ai' && (
-          <div className="minimal-card p-6 animate-fade-in">
-            <h3 className="font-medium text-neutral-900 mb-2">自定义 AI 模型</h3>
-            <p className="text-sm text-neutral-400 mb-6">配置您的 API Key，使用偏好的模型。</p>
-            <AiConfigPanel />
-          </div>
-        )}
       </div>
     </div>
   );

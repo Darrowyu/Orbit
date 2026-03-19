@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Task } from '../tasks/dto/task.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
-@WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000'], credentials: true } })
+@WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:1234'], credentials: true } })
 export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(TasksGateway.name);
   @WebSocketServer() server: Server;
