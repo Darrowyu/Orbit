@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, UpdateProjectMemberDto } from './dto/project.dto';
+import { CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, UpdateProjectMemberDto, ProjectCockpitData, CockpitRiskTasks, TeamMemberWorkload, ProjectActivity } from './dto/project.dto';
 import { ProjectEntity } from '../common/types';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -196,5 +196,127 @@ export class ProjectsService {
             taskCount: project._count?.tasks || 0,
             members: project.members?.map(m => ({ id: m.id, role: m.role, joinedAt: m.joinedAt?.toISOString(), user: { id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color } })) || [],
         };
+    }
+
+    // ========== 项目驾驶舱 (Cockpit) 方法 ==========
+
+    async getCockpitData(projectId: string, userId?: string): Promise<ProjectCockpitData> {
+        const project = await this.prisma.project.findUnique({
+            where: { id: projectId },
+            include: { members: { select: { userId: true } } },
+        });
+        if (!project) throw new NotFoundException('项目不存在');
+        await this.verifyProjectAccess(userId, project.teamId, project.members);
+
+        const [stats, risks, teamWorkload, activities] = await Promise.all([
+            this.getCockpitStats(projectId),
+            this.getRiskTasks(projectId),
+            this.getTeamWorkload(projectId),
+            this.getRecentActivities(projectId, 20),
+        ]);
+
+        return {
+            stats,
+            risks,
+            burndown: [],
+            cumulativeFlow: [],
+            teamWorkload,
+            activities,
+        };
+    }
+
+    private async verifyProjectAccess(userId: string | undefined, teamId: string, members: { userId: string }[]) {
+        if (!userId) return;
+        const isMember = members.some(m => m.userId === userId);
+        if (isMember) return;
+        const isTeamMember = await this.prisma.teamMember.findUnique({
+            where: { userId_teamId: { userId, teamId } },
+        });
+        if (!isTeamMember) throw new ForbiddenException('无权访问此项目');
+    }
+
+    private async getCockpitStats(projectId: string) {
+        const tasks = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false },
+            select: { status: true, priority: true },
+        });
+        const total = tasks.length;
+        const byStatus = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
+        const byPriority = { LOW: 0, MEDIUM: 0, HIGH: 0 };
+        tasks.forEach(t => {
+            byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+            byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+        });
+        const progress = total > 0 ? Math.round((byStatus.DONE / total) * 100) : 0;
+        return { total, byStatus, byPriority, progress };
+    }
+
+    private async getRiskTasks(projectId: string): Promise<CockpitRiskTasks> {
+        const now = new Date();
+        const overdue = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, dueDate: { lt: now }, status: { not: 'DONE' } },
+            select: { id: true, title: true, assignee: { select: { id: true, name: true, avatar: true } } },
+            orderBy: { dueDate: 'asc' },
+            take: 10,
+        });
+        const highPriority = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, priority: 'HIGH', status: 'TODO' },
+            select: { id: true, title: true, assignee: { select: { id: true, name: true, avatar: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+        });
+        const blocked = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, dependsOn: { isEmpty: false }, status: { not: 'DONE' } },
+            select: { id: true, title: true, assignee: { select: { id: true, name: true, avatar: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+        });
+        return { overdue, highPriority, blocked };
+    }
+
+    private async getTeamWorkload(projectId: string): Promise<TeamMemberWorkload[]> {
+        const members = await this.prisma.projectMember.findMany({
+            where: { projectId },
+            include: { user: { select: { id: true, name: true, avatar: true } } },
+        });
+        const workloads: TeamMemberWorkload[] = [];
+        for (const member of members) {
+            const tasks = await this.prisma.task.findMany({
+                where: { projectId, assigneeId: member.userId, isArchived: false },
+                select: { status: true, priority: true },
+            });
+            const byStatus: Record<string, number> = {};
+            const byPriority: Record<string, number> = {};
+            tasks.forEach(t => {
+                byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+                byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+            });
+            workloads.push({
+                user: member.user,
+                total: tasks.length,
+                byStatus,
+                byPriority,
+            });
+        }
+        return workloads;
+    }
+
+    private async getRecentActivities(projectId: string, limit: number): Promise<ProjectActivity[]> {
+        const logs = await this.prisma.auditLog.findMany({
+            where: { teamId: projectId },
+            include: { user: { select: { id: true, name: true, avatar: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+        });
+        return logs.map(l => ({
+            id: l.id,
+            action: l.action,
+            entityType: l.entityType,
+            entityId: l.entityId,
+            entityName: '',
+            user: l.user,
+            createdAt: l.createdAt.toISOString(),
+            metadata: { oldValue: l.oldValue, newValue: l.newValue },
+        }));
     }
 }
