@@ -188,6 +188,14 @@ export class AdminService {
     return this.prisma.project.update({ where: { id }, data: { isArchived: false, archivedAt: null } });
   }
 
+  async deleteProject(id: string) {
+    const project = await this.prisma.project.findUnique({ where: { id }, include: { _count: { select: { tasks: true } } } });
+    if (!project) throw new NotFoundException('项目不存在');
+    if (project._count.tasks > 0) throw new ForbiddenException(`该项目下有 ${project._count.tasks} 个任务，请先删除或转移任务`);
+    await this.prisma.project.delete({ where: { id } });
+    return { success: true };
+  }
+
   async getOverdueTasks(page = 1, limit = 20) {
     const where = { dueDate: { lt: new Date() }, status: { not: 'DONE' }, isArchived: false };
     const [tasks, total] = await Promise.all([

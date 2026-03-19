@@ -71,6 +71,9 @@ export class AdminController {
   @Post('projects/:id/restore')
   restoreProject(@Param('id') id: string) { return this.adminService.restoreProject(id); }
 
+  @Delete('projects/:id')
+  deleteProject(@Param('id') id: string) { return this.adminService.deleteProject(id); }
+
   @Get('tasks/overdue')
   getOverdueTasks(@Query() query: { page?: string; limit?: string }) {
     return this.adminService.getOverdueTasks(Number(query.page) || 1, Number(query.limit) || 20);
