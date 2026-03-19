@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, UpdateProjectMemberDto } from './dto/project.dto';
+import { CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, UpdateProjectMemberDto, ProjectCockpitData } from './dto/project.dto';
 import { ProjectEntity } from '../common/types';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -195,6 +195,66 @@ export class ProjectsService {
             archivedAt: project.archivedAt?.toISOString() || null,
             taskCount: project._count?.tasks || 0,
             members: project.members?.map(m => ({ id: m.id, role: m.role, joinedAt: m.joinedAt?.toISOString(), user: { id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color } })) || [],
+        };
+    }
+
+    async getCockpitData(projectId: string, userId?: string): Promise<ProjectCockpitData> { // 获取项目驾驶舱聚合数据
+        // 1. 获取项目统计
+        const stats = await this.getStats(projectId, userId);
+
+        // 2. 查询风险任务
+        const now = new Date();
+        const overdue = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, dueDate: { lt: now }, status: { not: 'DONE' } },
+            include: { assignee: { select: { id: true, name: true, avatar: true, color: true } } },
+            orderBy: { dueDate: 'asc' },
+            take: 10,
+        }); // 逾期任务
+
+        const highPriority = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, priority: 'HIGH', status: 'TODO' },
+            include: { assignee: { select: { id: true, name: true, avatar: true, color: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+        }); // 高优先级未开始任务
+
+        const allTasks = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false },
+            select: { id: true, dependsOn: true, title: true, status: true, assigneeId: true, assignee: { select: { id: true, name: true, avatar: true, color: true } } },
+        }); // 获取所有任务用于判断阻塞
+
+        const doneTaskIds = new Set(allTasks.filter(t => t.status === 'DONE').map(t => t.id));
+        const blocked = allTasks
+            .filter(t => t.dependsOn.length > 0 && t.dependsOn.some(depId => !doneTaskIds.has(depId)))
+            .slice(0, 10); // 被阻塞任务（依赖未完成）
+
+        // 3. 查询最近活动（从 auditLog）
+        const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { teamId: true } });
+        const activities = await this.prisma.auditLog.findMany({
+            where: { teamId: project?.teamId, entityType: { in: ['TASK', 'SUBTASK'] } },
+            include: { user: { select: { id: true, name: true, avatar: true, color: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+        }); // 最近20条活动
+
+        // 4. 团队工作负载（按成员统计任务数）
+        const teamWorkload = await this.prisma.task.groupBy({
+            by: ['assigneeId'],
+            where: { projectId, isArchived: false, assigneeId: { not: null } },
+            _count: { id: true },
+        }); // 各成员任务数
+
+        // 5. 燃尽图和累积流数据（简化版，返回空数组待后续扩展）
+        const burndown: any[] = [];
+        const cumulativeFlow: any[] = [];
+
+        return {
+            stats,
+            risks: { overdue, highPriority, blocked },
+            burndown,
+            cumulativeFlow,
+            teamWorkload,
+            activities,
         };
     }
 }
