@@ -17,8 +17,20 @@ export const ProjectTimeline = memo(function ProjectTimeline({ project }: Projec
     const timeProgress = start && end
         ? Math.min(100, Math.max(0, ((today.getTime() - start.getTime()) / (end.getTime() - start.getTime())) * 100))
         : null;
-    const isOverdue = end && today > end && project.status !== ('COMPLETED' as ProjectStatus);
+    const isOverdue = Boolean(end && today > end && project.status !== ('COMPLETED' as ProjectStatus));
     const daysRemaining = end ? Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+    function getBadgeVariant(): 'danger' | 'warning' | 'default' { // 根据逾期状态返回徽章样式
+        if (isOverdue) return 'danger';
+        if (daysRemaining !== null && daysRemaining <= 7) return 'warning';
+        return 'default';
+    }
+
+    function getDaysLabel(): string { // 根据剩余天数返回文本
+        if (isOverdue) return '已逾期';
+        if (daysRemaining === 0) return '今天截止';
+        return `剩余 ${daysRemaining} 天`;
+    }
 
     return (
         <Card variant="ghost" padding="sm">
@@ -30,9 +42,7 @@ export const ProjectTimeline = memo(function ProjectTimeline({ project }: Projec
                     项目周期
                 </span>
                 {daysRemaining !== null && (
-                    <Badge variant={isOverdue ? 'danger' : daysRemaining <= 7 ? 'warning' : 'default'} size="sm">
-                        {isOverdue ? '已逾期' : daysRemaining === 0 ? '今天截止' : `剩余 ${daysRemaining} 天`}
-                    </Badge>
+                    <Badge variant={getBadgeVariant()} size="sm">{getDaysLabel()}</Badge>
                 )}
             </div>
             <div className="flex items-center gap-3 text-sm text-slate-600 mb-2">
@@ -42,7 +52,7 @@ export const ProjectTimeline = memo(function ProjectTimeline({ project }: Projec
             </div>
             {timeProgress !== null && (
                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-[#001C3D]'}`} style={{ width: `${Math.min(100, timeProgress)}%` }} />
+                    <div className={`h-full rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-[#001C3D]'}`} style={{ width: `${timeProgress}%` }} />
                 </div>
             )}
         </Card>
