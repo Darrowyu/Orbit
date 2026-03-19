@@ -151,6 +151,7 @@ export const adminApi = {
   getProjectDetail: (id: string) => api.get(`/admin/projects/${id}`),
   archiveProject: (id: string) => api.post(`/admin/projects/${id}/archive`),
   restoreProject: (id: string) => api.post(`/admin/projects/${id}/restore`),
+  deleteProject: (id: string) => api.delete(`/admin/projects/${id}`),
   getOverdueTasks: (page?: number) => api.get('/admin/tasks/overdue', { params: { page } }),
   getTaskStats: () => api.get('/admin/tasks/stats'),
   batchArchiveTasks: (taskIds: string[]) => api.post('/admin/tasks/batch-archive', { taskIds }),

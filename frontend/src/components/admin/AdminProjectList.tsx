@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 };
 
 export const AdminProjectList: React.FC = memo(() => {
-  const { projects, projectsTotal, teams, fetchProjects, fetchTeams, archiveProject, restoreProject, loaded } = useAdminStore();
+  const { projects, projectsTotal, teams, fetchProjects, fetchTeams, archiveProject, restoreProject, deleteProject, loaded } = useAdminStore();
   const [loading, setLoading] = useState(!loaded.projects);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -55,6 +55,12 @@ export const AdminProjectList: React.FC = memo(() => {
   const handleRestore = async (id: string) => {
     await restoreProject(id);
     fetchProjects({ page, status, teamId, search });
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (await confirm({ title: '删除项目', message: `确定要永久删除项目"${name}"吗？此操作不可恢复。`, type: 'danger', confirmText: '删除' })) {
+      await deleteProject(id);
+    }
   };
 
   return (
@@ -126,6 +132,9 @@ export const AdminProjectList: React.FC = memo(() => {
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                         </button>
                       )}
+                      <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="删除项目">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>

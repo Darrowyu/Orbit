@@ -78,6 +78,7 @@ interface AdminStore {
   fetchProjects: (query?: { page?: number; status?: string; teamId?: string; search?: string }) => Promise<void>;
   archiveProject: (id: string) => Promise<void>;
   restoreProject: (id: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   fetchOverdueTasks: (page?: number) => Promise<void>;
   fetchTaskStats: () => Promise<void>;
   batchArchiveTasks: (taskIds: string[]) => Promise<void>;
@@ -207,6 +208,11 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   restoreProject: async (id) => {
     await adminApi.restoreProject(id);
     set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, isArchived: false } : p)) }));
+  },
+
+  deleteProject: async (id) => {
+    await adminApi.deleteProject(id);
+    set((s) => ({ projects: s.projects.filter((p) => p.id !== id), projectsTotal: s.projectsTotal - 1 }));
   },
 
   fetchOverdueTasks: async (page = 1) => {
