@@ -16,6 +16,7 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   use(req: Request, res: Response, next: NextFunction): void {
+    if (req.method === 'OPTIONS') return next(); // 跳过 CORS preflight 请求
     const key = this.getKey(req);
     const now = Date.now();
     const record = this.store.get(key);
