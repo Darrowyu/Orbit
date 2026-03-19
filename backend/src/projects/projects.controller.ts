@@ -34,6 +34,12 @@ export class ProjectsController {
         return this.projectsService.getStats(id, userId);
     }
 
+    @Get(':id/cockpit')
+    async getCockpit(@Param('id') id: string, @Req() req) { // 获取项目驾驶舱聚合数据
+        const { userId } = await this.getUserInfo(req);
+        return this.projectsService.getCockpitData(id, userId);
+    }
+
     @Post()
     async create(@Body() dto: CreateProjectDto, @Req() req) { // 创建项目
         const { userId, teamId } = await this.getUserInfo(req);

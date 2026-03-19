@@ -186,6 +186,7 @@ const App: React.FC = () => {
                 teamMembers={members}
                 onEditProject={() => handleEditProject(currentProject)}
                 onManageMembers={() => setIsMemberModalOpen(true)}
+                onTaskClick={handleEdit}
               />
             </div>
           ) : (
