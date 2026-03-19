@@ -6,13 +6,6 @@ export interface AIResponse {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
-export interface UserAiConfig {
-  aiProvider: string | null;
-  aiApiKey: string | null;
-  aiBaseUrl: string | null;
-  aiModelName: string | null;
-}
-
 export interface WorkloadEstimate {
   hours: number;
   confidence: 'high' | 'medium' | 'low';
@@ -45,15 +38,6 @@ export interface RiskDetection {
   riskLevel: 'high' | 'medium' | 'low';
   reasons: string[];
   suggestions: string[];
-}
-
-// Gemini API 响应类型
-export interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-    finishReason?: string;
-  }>;
-  error?: { message: string; code: number };
 }
 
 // OpenAI 兼容 API 响应类型

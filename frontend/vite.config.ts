@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   return {
     clearScreen: false,
     server: {
-      port: 3000,
+      port: 1234,
       host: true,
       proxy: {
         '/api': {

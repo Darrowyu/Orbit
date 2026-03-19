@@ -2,84 +2,60 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
-import { PrismaService } from '../prisma/prisma.service';
-import { CryptoUtil } from '../common/crypto.util';
-import { AIResponse, UserAiConfig, WorkloadEstimate, TeamMemberInfo, TaskInfo, AssigneeRecommendation, RiskDetection, GeminiResponse, OpenAICompatibleResponse, ParsedAITaskResponse, ParsedAISubdivideResponse } from './ai.types';
+import { AIResponse, WorkloadEstimate, TeamMemberInfo, TaskInfo, AssigneeRecommendation, RiskDetection, OpenAICompatibleResponse, ParsedAITaskResponse, ParsedAISubdivideResponse } from './ai.types';
 
-export { AIResponse, UserAiConfig };
-
-const AI_PROVIDER_CONFIG = {
-  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-  moonshot: { baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
-  zhipu: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
-};
+export { AIResponse };
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private sysGeminiKey: string;
-  private sysBackupKey: string;
-  private sysBackupBaseUrl: string;
+  private apiKey: string;
+  private baseUrl: string;
+  private model: string;
   private proxyAgent: HttpsProxyAgent<string> | null = null;
 
   constructor(
     private config: ConfigService,
-    private prisma: PrismaService
   ) {
-    this.sysGeminiKey = config.get('GEMINI_API_KEY') || '';
-    this.sysBackupKey = config.get('AI_API_KEY_BACKUP') || '';
-    this.sysBackupBaseUrl = config.get('AI_BASE_URL_BACKUP') || 'https://api.deepseek.com/v1';
+    this.apiKey = config.get('AI_API_KEY') || '';
+    this.baseUrl = config.get('AI_BASE_URL') || 'https://api.kimi.com/coding';
+    this.model = config.get('AI_MODEL') || 'kimi-k2.5';
     const proxy = config.get('HTTPS_PROXY');
     if (proxy) this.proxyAgent = new HttpsProxyAgent(proxy);
     this.logger.log('AI Service Initialized');
   }
 
-  async getUserAiConfig(userId: string): Promise<UserAiConfig | null> {
-    if (!userId) return null;
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.aiApiKey) return null;
-    return {
-      aiProvider: user.aiProvider,
-      aiApiKey: CryptoUtil.decrypt(user.aiApiKey),
-      aiBaseUrl: user.aiBaseUrl,
-      aiModelName: user.aiModelName,
-    };
-  }
-
-  async generateTaskDetails(title: string, customPrompt?: string, userId?: string): Promise<AIResponse> {
+  async generateTaskDetails(title: string, customPrompt?: string): Promise<AIResponse> {
     const prompt = this.buildTaskPrompt(title, customPrompt);
     return this.executeWithFallback<AIResponse>(
       prompt,
       (json) => this.parseTaskResponse(json as ParsedAITaskResponse),
-      this.localFallbackTaskDetails(title),
-      userId ? await this.getUserAiConfig(userId) : null
+      this.localFallbackTaskDetails(title)
     );
   }
 
   private buildTaskPrompt(title: string, customPrompt?: string): string {
     const defaultPrompt = `你是一个专业的项目经理。我有一个任务标题："${title}"。请提供：1. 简洁专业的任务描述 2. 3-5个可执行的子任务 3. 推荐优先级(LOW/MEDIUM/HIGH)。必须使用简体中文回复，返回JSON格式：{"description":"...","subtasks":["..."],"priority":"..."}`;
-    
+
     if (!customPrompt?.trim()) return defaultPrompt;
-    
+
     return customPrompt.replace(/\{title\}/g, title) + '\n\n必须返回JSON格式：{"description":"...","subtasks":["..."],"priority":"LOW/MEDIUM/HIGH"}';
   }
 
   private parseTaskResponse(json: ParsedAITaskResponse): AIResponse {
-    return { 
-      description: json.description, 
-      subtasks: json.subtasks, 
-      priority: json.priority as 'LOW' | 'MEDIUM' | 'HIGH' 
+    return {
+      description: json.description,
+      subtasks: json.subtasks,
+      priority: json.priority as 'LOW' | 'MEDIUM' | 'HIGH'
     };
   }
 
-  async subdivideSubtask(subtaskTitle: string, parentContext?: string, userId?: string): Promise<string[]> {
+  async subdivideSubtask(subtaskTitle: string, parentContext?: string): Promise<string[]> {
     const prompt = this.buildSubtaskPrompt(subtaskTitle, parentContext);
     return this.executeWithFallback<string[]>(
       prompt,
       (json) => (json as ParsedAISubdivideResponse).steps || ['AI正在休息，请手动添加步骤'],
-      ['调研现状', '制定方案', '执行实施', '验收确认'],
-      userId ? await this.getUserAiConfig(userId) : null
+      ['调研现状', '制定方案', '执行实施', '验收确认']
     );
   }
 
@@ -88,17 +64,16 @@ export class AiService {
     return `你是一个专业的项目经理。请将以下子任务细分为3-5个更具体的可执行步骤：\n\n子任务："${subtaskTitle}"${ctx}\n\n要求：每个步骤要具体可执行，有逻辑顺序。必须使用简体中文回复，返回JSON格式：{"steps":["步骤1","步骤2","步骤3"]}`;
   }
 
-  async estimateWorkload(taskTitle: string, description: string, subtasks: string[], userId?: string): Promise<WorkloadEstimate> {
+  async estimateWorkload(taskTitle: string, description: string, subtasks: string[]): Promise<WorkloadEstimate> {
     const prompt = `你是项目管理专家。请评估以下任务的工作量：\n任务：${taskTitle}\n描述：${description}\n子任务：${subtasks.join('、')}\n\n返回JSON：{"hours":数字,"confidence":"high/medium/low","factors":["因素1","因素2"]}`;
     return this.executeWithFallback(
       prompt,
       (json) => json as WorkloadEstimate,
-      { hours: 4, confidence: 'low', factors: ['基于历史数据默认估算', 'AI服务暂时不可用'] },
-      userId ? await this.getUserAiConfig(userId) : null
+      { hours: 4, confidence: 'low', factors: ['基于历史数据默认估算', 'AI服务暂时不可用'] }
     );
   }
 
-  async recommendAssignee(taskTitle: string, description: string, teamMembers: TeamMemberInfo[], taskHistory: TaskInfo[], userId?: string): Promise<AssigneeRecommendation> {
+  async recommendAssignee(taskTitle: string, description: string, teamMembers: TeamMemberInfo[], taskHistory: TaskInfo[]): Promise<AssigneeRecommendation> {
     if (!teamMembers.length) return { recommendedId: '', reason: '无成员', alternatives: [] };
     const memberInfo = teamMembers.map(m => `${m.name}(ID:${m.id},技能:${m.skills?.join('、') || '未设置'})`).join('；');
     const prompt = `你是团队管理专家。任务："${taskTitle}"\n团队成员：${memberInfo}\n推荐最佳负责人，返回JSON：{"recommendedId":"ID","reason":"理由","alternatives":[]}`;
@@ -106,12 +81,11 @@ export class AiService {
     return this.executeWithFallback(
       prompt,
       (json) => json as AssigneeRecommendation,
-      { recommendedId: teamMembers[0]?.id, reason: '轮询分配（AI服务暂不可用）', alternatives: [] },
-      userId ? await this.getUserAiConfig(userId) : null
+      { recommendedId: teamMembers[0]?.id, reason: '轮询分配（AI服务暂不可用）', alternatives: [] }
     );
   }
 
-  async detectRisks(tasks: TaskInfo[], userId?: string): Promise<RiskDetection[]> {
+  async detectRisks(tasks: TaskInfo[]): Promise<RiskDetection[]> {
     if (!tasks.length) return [];
     const taskInfo = tasks.map(t => `ID:${t.id},标题:${t.title},状态:${t.status}`).join('；');
     const prompt = `你是风险管理专家。分析任务风险：\n${taskInfo}\n返回JSON数组：[{"taskId":"ID","riskLevel":"high/medium","reasons":[],"suggestions":[]}]`;
@@ -119,8 +93,7 @@ export class AiService {
     return this.executeWithFallback(
       prompt,
       (json) => Array.isArray(json) ? json as RiskDetection[] : [],
-      [],
-      userId ? await this.getUserAiConfig(userId) : null
+      []
     );
   }
 
@@ -128,53 +101,37 @@ export class AiService {
   private async executeWithFallback<T>(
     prompt: string,
     parser: (json: unknown) => T,
-    localFallback: T,
-    userConfig?: UserAiConfig | null
+    localFallback: T
   ): Promise<T> {
-    const fallbackChain = [
-      { name: 'User Config', fn: async () => userConfig?.aiApiKey ? this.callWithUserConfig(prompt, userConfig) : null },
-      { name: 'System Gemini', fn: async () => this.sysGeminiKey ? this.callGemini(prompt, this.sysGeminiKey) : null },
-      { name: 'System Backup', fn: async () => this.sysBackupKey ? this.callOpenAICompatible(prompt, this.sysBackupBaseUrl, this.sysBackupKey, 'deepseek-chat') : null },
-    ];
-
-    for (const { name, fn } of fallbackChain) {
-      try {
-        const res = await fn();
-        if (res) return parser(res);
-      } catch (e) {
-        this.logger.warn(`${name} failed: ${e.message}`);
-      }
+    try {
+      const res = await this.callAI(prompt);
+      if (res) return parser(res);
+    } catch (e) {
+      this.logger.warn(`AI call failed: ${e.message}`);
     }
 
     this.logger.log('Using Local Fallback rules.');
     return localFallback;
   }
 
-  private async callWithUserConfig(prompt: string, config: UserAiConfig): Promise<unknown> {
-    if (config.aiProvider === 'gemini') {
-      return this.callGemini(prompt, config.aiApiKey!);
-    }
-    
-    const providerConfig = AI_PROVIDER_CONFIG[config.aiProvider as keyof typeof AI_PROVIDER_CONFIG];
-    const baseUrl = config.aiBaseUrl || providerConfig?.baseUrl || 'https://api.openai.com/v1';
-    const modelName = config.aiModelName || providerConfig?.model || 'gpt-3.5-turbo';
-    return this.callOpenAICompatible(prompt, baseUrl, config.aiApiKey!, modelName);
-  }
-
-  private async callGemini(prompt: string, apiKey: string): Promise<unknown> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const response = await this.postJSON(url, { contents: [{ parts: [{ text: prompt }] }] }, 15000);
-    const data = await response.json() as GeminiResponse;
-    return this.extractJSON(data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
-  }
-
-  private async callOpenAICompatible(prompt: string, baseUrl: string, apiKey: string, modelName: string): Promise<unknown> {
-    const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    const headers = { Authorization: `Bearer ${apiKey}` };
-    const body = { model: modelName, messages: [{ role: 'user', content: prompt }], temperature: 0.7 };
+  private async callAI(prompt: string): Promise<unknown> {
+    const url = `${this.baseUrl.replace(/\/+$/, '')}/v1/messages`;
+    this.logger.debug(`AI Request URL: ${url}, Model: ${this.model}`);
+    const headers = {
+      'x-api-key': this.apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json'
+    };
+    const body = {
+      model: this.model,
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }]
+    };
     const response = await this.postJSON(url, body, 20000, headers);
-    const data = await response.json() as OpenAICompatibleResponse;
-    return this.extractJSON(data?.choices?.[0]?.message?.content || '');
+    const data = await response.json() as Record<string, unknown>;
+    // Anthropic 响应格式: content[0].text
+    const content = data?.content as Array<{type: string; text: string}> | undefined;
+    return this.extractJSON(content?.[0]?.text || '');
   }
 
   private async postJSON(url: string, body: object, timeout: number, extraHeaders?: Record<string, string>): Promise<Response> {
@@ -185,7 +142,10 @@ export class AiService {
       agent: this.proxyAgent,
       timeout
     });
-    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`API Error: ${response.statusText} - ${errBody}`);
+    }
     return response;
   }
 
