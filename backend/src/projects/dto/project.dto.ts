@@ -30,3 +30,18 @@ export class BatchAddMembersDto {
     @IsArray() @IsString({ each: true }) userIds: string[];
     @IsString() @IsOptional() role?: string;
 }
+
+export interface CockpitRiskTasks {
+    overdue: any[];
+    highPriority: any[];
+    blocked: any[];
+}
+
+export interface ProjectCockpitData {
+    stats: any;
+    risks: CockpitRiskTasks;
+    burndown: any[];
+    cumulativeFlow: any[];
+    teamWorkload: any[];
+    activities: any[];
+}
