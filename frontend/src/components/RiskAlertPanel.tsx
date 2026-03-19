@@ -7,6 +7,7 @@ interface RiskAlertPanelProps {
   highPriority: Task[];      // 高优先级未开始任务列表
   blocked: Task[];           // 被阻塞任务列表
   onTaskClick?: (task: Task) => void;  // 任务点击回调
+  loading?: boolean;         // 加载状态
 }
 
 // 风险预警面板组件 - 显示项目中的风险任务
@@ -15,7 +16,25 @@ export const RiskAlertPanel: React.FC<RiskAlertPanelProps> = ({
   highPriority,
   blocked,
   onTaskClick,
+  loading,
 }) => {
+  // 加载状态显示骨架屏
+  if (loading) {
+    return (
+      <Card variant="ghost" className="bg-slate-50 border border-slate-100">
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
+            <div className="h-4 bg-slate-200 rounded w-20 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-slate-200 rounded w-full animate-pulse" />
+            <div className="h-3 bg-slate-200 rounded w-3/4 animate-pulse" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
   // 计算总风险数
   const totalRisks = overdue.length + highPriority.length + blocked.length;
 
@@ -43,8 +62,7 @@ export const RiskAlertPanel: React.FC<RiskAlertPanelProps> = ({
     tasks: Task[],
     title: string,
     badgeVariant: 'danger' | 'warning' | 'info',
-    textColor: string,
-    bgColor: string
+    textColor: string
   ): React.ReactNode => {
     if (tasks.length === 0) return null;
 
@@ -96,22 +114,19 @@ export const RiskAlertPanel: React.FC<RiskAlertPanelProps> = ({
         overdue,
         '已逾期',
         'danger',
-        'text-red-600',
-        'bg-red-50'
+        'text-red-600'
       )}
       {renderTaskList(
         highPriority,
         '高优先级未开始',
         'warning',
-        'text-amber-600',
-        'bg-amber-50'
+        'text-amber-600'
       )}
       {renderTaskList(
         blocked,
         '被阻塞',
         'info',
-        'text-purple-600',
-        'bg-purple-50'
+        'text-purple-600'
       )}
     </Card>
   );
