@@ -64,7 +64,6 @@ export const SimpleBurndownChart = memo(function SimpleBurndownChart({ data, loa
 
                         {/* 数据点 */}
                         {data.map((d, i) => {
-                            const maxRemaining = Math.max(...data.map(item => item.remaining), 1);
                             const x = 10 + (i / (data.length - 1 || 1)) * 80;
                             const y = 10 + 80 - (d.remaining / maxRemaining) * 80;
                             return <circle key={i} cx={x} cy={y} r="1.5" fill="#001C3D" />;
