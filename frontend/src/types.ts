@@ -203,3 +203,30 @@ export interface TaskCreateData {
   dependsOn?: string[];
   labelIds?: string[];
 }
+
+export interface CockpitRiskTasks {
+  overdue: Task[];
+  highPriority: Task[];
+  blocked: Task[];
+}
+
+export interface ProjectActivity {
+  id: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'ARCHIVE' | 'RESTORE' | 'ASSIGN';
+  entityType: 'TASK' | 'PROJECT' | 'SUBTASK';
+  entityId: string;
+  entityName?: string;
+  user: { id: string; name: string; avatar: string; color: string };
+  createdAt: string;
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
+}
+
+export interface ProjectCockpitData {
+  stats: ProjectStats;
+  risks: CockpitRiskTasks;
+  burndown: { date: string; remaining: number; completed: number }[];
+  cumulativeFlow: { date: string; TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number }[];
+  teamWorkload: { user: { id: string; name: string; avatar: string; color: string }; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> }[];
+  activities: ProjectActivity[];
+}

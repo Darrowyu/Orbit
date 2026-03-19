@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry } from '../types';
+import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry, ProjectCockpitData } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL 
@@ -96,6 +96,7 @@ export const projectApi = {
   getAll: (archived = false) => api.get<Project[]>('/projects', { params: { archived } }),
   getOne: (id: string) => api.get<Project>(`/projects/${id}`),
   getStats: (id: string) => api.get<ProjectStats>(`/projects/${id}/stats`),
+  getCockpit: (id: string, startDate?: string, endDate?: string) => api.get<ProjectCockpitData>(`/projects/${id}/cockpit`, { params: { startDate, endDate } }),
   create: (data: { name: string; description?: string; color?: string; startDate?: string; endDate?: string }) => api.post<Project>('/projects', data),
   update: (id: string, data: Partial<Project>) => api.put<Project>(`/projects/${id}`, data),
   delete: (id: string) => api.delete(`/projects/${id}`),
