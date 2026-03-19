@@ -18,7 +18,7 @@ export class AiService {
     private config: ConfigService,
   ) {
     this.apiKey = config.get('AI_API_KEY') || '';
-    this.baseUrl = config.get('AI_BASE_URL') || 'https://api.kimi.com/coding';
+    this.baseUrl = config.get('AI_BASE_URL') || 'https://api.kimi.com/coding/';
     this.model = config.get('AI_MODEL') || 'kimi-k2.5';
     const proxy = config.get('HTTPS_PROXY');
     if (proxy) this.proxyAgent = new HttpsProxyAgent(proxy);
