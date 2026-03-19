@@ -245,8 +245,8 @@ export class ProjectsService {
         }); // 各成员任务数
 
         // 5. 燃尽图和累积流数据（简化版，返回空数组待后续扩展）
-        const burndown: any[] = [];
-        const cumulativeFlow: any[] = [];
+        const burndown: { date: string; remaining: number; completed: number }[] = [];
+        const cumulativeFlow: { date: string; TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number }[] = [];
 
         return {
             stats,
