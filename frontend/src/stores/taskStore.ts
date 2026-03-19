@@ -25,6 +25,7 @@ interface TaskStore {
   deleteTask: (id: string) => Promise<void>;
   removeTask: (id: string) => void;
   moveTask: (id: string, status: TaskStatus) => Promise<{ success: boolean; error: string }>;
+  validateDependencies: (task: Task, status: TaskStatus) => string | null;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   assignSubtask: (taskId: string, subtaskId: string, assigneeId: string) => Promise<void>;
   archiveTask: (id: string) => Promise<void>;
@@ -42,7 +43,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data } = await taskApi.getAll({ page, limit });
       set({ tasks: data.data, pagination: data.pagination, isLoading: false });
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
       set({ isLoading: false });
     }
   },
@@ -51,7 +53,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data } = await taskApi.getArchived();
       set({ archivedTasks: data });
-    } catch { /* 静默处理，避免日志泄露 */ }
+    } catch (error) {
+      console.error('Failed to fetch archived tasks:', error);
+    }
   },
 
   addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),
@@ -66,13 +70,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const previousTasks = get().tasks;
     const task = previousTasks.find(t => t.id === id);
     if (!task) return;
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...data } : t)) })); // 乐观更新
+    
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...data } : t)) }));
+    
     try {
       const { data: updated } = await taskApi.update(id, data);
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
       emitTaskUpdate(updated);
     } catch (error) {
-      set({ tasks: previousTasks }); // 回滚
+      set({ tasks: previousTasks });
       throw error;
     }
   },
@@ -81,12 +87,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   deleteTask: async (id) => {
     const previousTasks = get().tasks;
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })); // 乐观删除
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
     try {
       await taskApi.delete(id);
       emitTaskDelete(id);
     } catch (error) {
-      set({ tasks: previousTasks }); // 回滚
+      set({ tasks: previousTasks });
       throw error;
     }
   },
@@ -97,38 +103,52 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const previousTasks = get().tasks;
     const task = previousTasks.find((t) => t.id === id);
     if (!task) return { success: false, error: '任务不存在' };
-    const restricted = [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.DONE];
-    if (restricted.includes(status) && task.dependsOn?.length) {
-      const incomplete = get().tasks.filter((t) => task.dependsOn.includes(t.id) && t.status !== TaskStatus.DONE);
-      if (incomplete.length) return { success: false, error: `依赖的前置任务未完成：${incomplete.map((t) => t.title).join('、')}` };
-    }
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, status } : t)) })); // 乐观更新
+    
+    const error = get().validateDependencies(task, status);
+    if (error) return { success: false, error };
+    
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, status } : t)) }));
     try {
       const { data: updated } = await taskApi.update(id, { status });
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
       emitTaskUpdate(updated);
       return { success: true, error: '' };
     } catch (error) {
-      set({ tasks: previousTasks }); // 回滚
+      set({ tasks: previousTasks });
       return { success: false, error: getErrorMessage(error) };
     }
+  },
+
+  validateDependencies: (task, status) => {
+    const restricted = [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.DONE];
+    if (!restricted.includes(status) || !task.dependsOn?.length) return null;
+    const incomplete = get().tasks.filter((t) => task.dependsOn.includes(t.id) && t.status !== TaskStatus.DONE);
+    return incomplete.length ? `依赖的前置任务未完成：${incomplete.map((t) => t.title).join('、')}` : null;
   },
 
   toggleSubtask: async (taskId, subtaskId) => {
     const task = get().tasks.find((t) => t.id === taskId);
     if (!task) return;
+    
     const subtasks = task.subtasks.map((s) => (s.id === subtaskId ? { ...s, completed: !s.completed } : s));
     const updates: Partial<Task> = { subtasks };
-    // 待处理状态下，只要有任何子任务完成就自动移到进行中
-    const statusStr = String(task.status); // 确保字符串比较
-    const isTodo = statusStr === 'TODO';
-    const hasCompleted = subtasks.some((s) => s.completed);
-    if (isTodo && hasCompleted) {
-      const deps = task.dependsOn || [];
-      const incomplete = deps.length > 0 ? get().tasks.filter((t) => deps.includes(t.id) && String(t.status) !== 'DONE') : [];
-      if (incomplete.length === 0) updates.status = TaskStatus.IN_PROGRESS;
-    }
+    
+    const newStatus = get().deriveStatusFromSubtasks(task, subtasks);
+    if (newStatus) updates.status = newStatus;
+    
     await get().updateTask(taskId, updates);
+  },
+
+  deriveStatusFromSubtasks: (task, subtasks) => {
+    if (task.status !== TaskStatus.TODO) return null;
+    if (!subtasks.some((s) => s.completed)) return null;
+    
+    const deps = task.dependsOn || [];
+    if (deps.length > 0) {
+      const incomplete = get().tasks.filter((t) => deps.includes(t.id) && t.status !== TaskStatus.DONE);
+      if (incomplete.length > 0) return null;
+    }
+    return TaskStatus.IN_PROGRESS;
   },
 
   assignSubtask: async (taskId, subtaskId, assigneeId) => {
@@ -139,31 +159,34 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   archiveTask: async (id) => {
-    const previousTasks = get().tasks;
-    const previousArchived = get().archivedTasks;
-    const task = previousTasks.find(t => t.id === id);
+    const task = get().tasks.find(t => t.id === id);
     if (!task) return;
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), archivedTasks: [{ ...task, isArchived: true, archivedAt: new Date().toISOString() }, ...s.archivedTasks] })); // 乐观更新
-    try {
-      const { data: archived } = await taskApi.archive(id);
-      set((s) => ({ archivedTasks: s.archivedTasks.map(t => t.id === id ? archived : t) }));
-    } catch (error) {
-      set({ tasks: previousTasks, archivedTasks: previousArchived }); // 回滚
-      throw error;
-    }
+    await get().performArchiveOperation(id, task, true);
   },
 
   restoreTask: async (id) => {
+    const task = get().archivedTasks.find(t => t.id === id);
+    if (!task) return;
+    await get().performArchiveOperation(id, task, false);
+  },
+
+  performArchiveOperation: async (id: string, task: Task, isArchiving: boolean) => {
     const previousTasks = get().tasks;
     const previousArchived = get().archivedTasks;
-    const task = previousArchived.find(t => t.id === id);
-    if (!task) return;
-    set((s) => ({ archivedTasks: s.archivedTasks.filter((t) => t.id !== id), tasks: [{ ...task, isArchived: false, archivedAt: null }, ...s.tasks] })); // 乐观更新
+    const archivedAt = isArchiving ? new Date().toISOString() : null;
+    const updatedTask = { ...task, isArchived: isArchiving, archivedAt };
+    
+    if (isArchiving) {
+      set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), archivedTasks: [updatedTask, ...s.archivedTasks] }));
+    } else {
+      set((s) => ({ archivedTasks: s.archivedTasks.filter((t) => t.id !== id), tasks: [updatedTask, ...s.tasks] }));
+    }
+    
     try {
-      const { data: restored } = await taskApi.restore(id);
-      set((s) => ({ tasks: s.tasks.map(t => t.id === id ? restored : t) }));
+      const { data } = isArchiving ? await taskApi.archive(id) : await taskApi.restore(id);
+      set((s) => ({ [isArchiving ? 'archivedTasks' : 'tasks']: s[isArchiving ? 'archivedTasks' : 'tasks'].map(t => t.id === id ? data : t) }));
     } catch (error) {
-      set({ tasks: previousTasks, archivedTasks: previousArchived }); // 回滚
+      set({ tasks: previousTasks, archivedTasks: previousArchived });
       throw error;
     }
   },
