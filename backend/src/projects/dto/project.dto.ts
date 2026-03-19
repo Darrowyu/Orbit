@@ -1,5 +1,69 @@
 import { IsString, IsOptional, IsDateString, IsArray, IsBoolean } from 'class-validator';
 
+// 驾驶舱风险任务类型
+export interface CockpitRiskTask {
+  id: string;
+  title: string;
+  assignee?: { id: string; name: string; avatar: string } | null;
+}
+
+export interface CockpitRiskTasks {
+  overdue: CockpitRiskTask[];
+  highPriority: CockpitRiskTask[];
+  blocked: CockpitRiskTask[];
+}
+
+// 燃尽图数据点
+export interface BurndownDataPoint {
+  date: string;
+  remaining: number;
+  completed: number;
+}
+
+// 累积流图数据点
+export interface CumulativeFlowDataPoint {
+  date: string;
+  TODO: number;
+  IN_PROGRESS: number;
+  REVIEW: number;
+  DONE: number;
+}
+
+// 团队成员工作负载
+export interface TeamMemberWorkload {
+  user: { id: string; name: string; avatar: string };
+  total: number;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+}
+
+// 项目活动
+export interface ProjectActivity {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  entityName: string;
+  user: { id: string; name: string; avatar: string };
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+// 项目驾驶舱数据
+export interface ProjectCockpitData {
+  stats: {
+    total: number;
+    byStatus: { TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number };
+    byPriority: { LOW: number; MEDIUM: number; HIGH: number };
+    progress: number;
+  };
+  risks: CockpitRiskTasks;
+  burndown: BurndownDataPoint[];
+  cumulativeFlow: CumulativeFlowDataPoint[];
+  teamWorkload: TeamMemberWorkload[];
+  activities: ProjectActivity[];
+}
+
 export class CreateProjectDto {
     @IsString() name: string;
     @IsString() @IsOptional() description?: string;
