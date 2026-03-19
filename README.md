@@ -237,3 +237,8 @@ UPDATE "User" SET "isSuperAdmin" = true WHERE email = '你的邮箱';
 4. 访问 `/admin` 验证管理员权限（需先设置超级管理员）
 
 
+## License
+
+[MIT](LICENSE) © 2026 Orbit Contributors
+
+
