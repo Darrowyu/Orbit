@@ -32,3 +32,6 @@ dist-ssr
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+
+# BitFun snapshot data - auto managed
+.bitfun/
