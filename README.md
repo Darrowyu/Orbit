@@ -2,6 +2,17 @@
 
 > 现代团队任务协作平台 —— 看板驱动，AI 辅助，实时同步。
 
+[<img src="https://img.shields.io/badge/license-MIT-blue">](LICENSE)
+<img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white">
+<img src="https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white">
+<img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
+<img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white">
+
+<!-- TODO: 替换为实际截图 -->
+<!-- <p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Orbit Dashboard" width="800">
+</p> -->
+
 ## 功能特性
 
 - **项目管理** — 创建项目、设置周期、管理成员、Cockpit 仪表盘全景概览
@@ -11,6 +22,8 @@
 - **实时协作** — WebSocket 多端同步，任务变更即时推送
 - **权限体系** — 团队成员隔离、管理员后台、超级管理员控制
 - **通知中心** — 任务指派、状态变更、截止日期提醒
+
+**设计 & 安全**：暗色主题、Glassmorphism UI、响应式布局；JWT 认证、团队隔离、CORS 可控、敏感配置不落地。
 
 ## 快速开始
 
@@ -77,22 +90,6 @@ npm run dev
 - **前端**：React 18 + TypeScript + Vite + Zustand + TailwindCSS
 - **后端**：NestJS + Prisma + PostgreSQL + Socket.io + JWT
 - **AI**：Anthropic Messages API（兼容 Kimi、OpenRouter 等）
-
-## 设计系统
-
-- 完整的设计令牌系统（颜色、间距、圆角、阴影）
-- 暗色主题支持（CSS 变量）
-- 丰富的动画效果
-- Glassmorphism 风格组件
-- 响应式布局
-
-## 安全特性
-
-- JWT 认证与可配置过期时间
-- 任务操作权限验证（团队成员隔离）
-- WebSocket 按团队隔离广播
-- CORS 环境变量配置
-- 敏感配置项不提交 Git
 
 ## License
 
