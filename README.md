@@ -1,88 +1,49 @@
-# Orbit - 团队任务协作平台
+# Orbit
 
-由 Gemini AI 驱动的现代看板式任务管理系统。
+> 现代团队任务协作平台 —— 看板驱动，AI 辅助，实时同步。
 
 ## 功能特性
 
-- **项目管理** - 创建项目、设置周期、管理成员、查看进度仪表盘
-- 拖拽式看板任务管理
-- 任务归属项目，按项目筛选
-- 任务依赖关系可视化
-- AI 智能任务分解与优先级建议
-- 实时多端同步协作
-- 仪表盘数据概览
-- 团队成员管理与权限控制
-- 通知中心
-- 管理后台
-
-## 项目结构
-
-```
-orbit/
-├── frontend/          # React 前端
-│   ├── src/
-│   │   ├── components/   # UI 组件
-│   │   ├── pages/        # 页面组件
-│   │   ├── services/     # API 和 Socket 服务
-│   │   ├── stores/       # Zustand 状态管理
-│   │   └── types.ts      # 类型定义
-│   └── package.json
-│
-├── backend/           # NestJS 后端
-│   ├── src/
-│   │   ├── auth/         # JWT 认证
-│   │   ├── users/        # 用户管理
-│   │   ├── tasks/        # 任务 CRUD
-│   │   ├── ai/           # Gemini AI 代理
-│   │   ├── gateway/      # WebSocket 实时同步
-│   │   └── prisma/       # 数据库服务
-│   ├── prisma/
-│   │   └── schema.prisma # 数据模型
-│   └── package.json
-```
+- **项目管理** — 创建项目、设置周期、管理成员、Cockpit 仪表盘全景概览
+- **拖拽看板** — 直观的任务状态流转，支持优先级、标签、截止日期
+- **任务依赖** — 可视化依赖关系图，自动识别阻塞与风险
+- **AI 智能助手** — 基于 LLM 自动任务分解、优先级建议与工作量估算
+- **实时协作** — WebSocket 多端同步，任务变更即时推送
+- **权限体系** — 团队成员隔离、管理员后台、超级管理员控制
+- **通知中心** — 任务指派、状态变更、截止日期提醒
 
 ## 快速开始
+
+### 前置要求
+
+- Node.js ≥ 18
+- PostgreSQL ≥ 14
 
 ### 1. 安装依赖
 
 ```bash
-cd backend && npm install
-cd ../frontend && npm install
+npm run install:all
 ```
 
 ### 2. 配置环境变量
-
-复制示例配置文件并修改：
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-编辑 `backend/.env`：
+编辑 `backend/.env`，至少配置以下项：
 
 ```env
-# 数据库连接
-DATABASE_URL="postgresql://postgres:your_password@localhost:5432/orbit"
+# 数据库
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/orbit?schema=public"
 
-# JWT 配置
+# JWT
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-JWT_EXPIRES_IN="7d"
 
-# Gemini AI API
-GEMINI_API_KEY="your-gemini-api-key"
-
-# 服务端口
-PORT=4000
-
-# 前端地址（CORS配置，多个用逗号分隔）
-FRONTEND_URL="http://localhost:3000"
-
-# 代理配置（可选）
-# HTTPS_PROXY=http://127.0.0.1:7890
-
-# 登录安全配置
-LOGIN_RATE_LIMIT_WINDOW_MS=900000
-LOGIN_RATE_LIMIT_MAX=5
+# AI 功能（可选，Anthropic Messages API 格式，兼容 Kimi 等服务）
+AI_API_KEY=your_api_key_here
+AI_BASE_URL=https://api.kimi.com/coding/
+AI_MODEL=kimi-k2.5
 ```
 
 ### 3. 初始化数据库
@@ -92,17 +53,13 @@ cd backend
 npx prisma migrate dev --name init
 ```
 
-### 4. 启动服务
+### 4. 启动开发服务
 
 ```bash
-# 终端1 - 后端
-cd backend && npm run dev
-
-# 终端2 - 前端
-cd frontend && npm run dev
+npm run dev
 ```
 
-访问 http://localhost:3000
+访问 http://localhost:1234
 
 ## 页面路由
 
@@ -117,14 +74,14 @@ cd frontend && npm run dev
 
 ## 技术栈
 
-- 前端：React 18 + TypeScript + Vite + Zustand + TailwindCSS
-- 后端：NestJS + Prisma + PostgreSQL + Socket.io + JWT
-- AI：Google Gemini API
+- **前端**：React 18 + TypeScript + Vite + Zustand + TailwindCSS
+- **后端**：NestJS + Prisma + PostgreSQL + Socket.io + JWT
+- **AI**：Anthropic Messages API（兼容 Kimi、OpenRouter 等）
 
 ## 设计系统
 
 - 完整的设计令牌系统（颜色、间距、圆角、阴影）
-- 暗色主题支持（CSS变量）
+- 暗色主题支持（CSS 变量）
 - 丰富的动画效果
 - Glassmorphism 风格组件
 - 响应式布局
@@ -200,7 +157,7 @@ VITE_API_URL = https://你的Railway后端域名.up.railway.app
 前端部署成功后，回到 Railway 后端服务：
 1. **Variables** → 修改 `FRONTEND_URL`
 2. 设置为 Vercel 分配的前端域名（如 `https://xxx.vercel.app`）
-3. 多个域名用逗号分隔：`http://localhost:3000,https://xxx.vercel.app`
+3. 多个域名用逗号分隔：`http://localhost:1234,https://xxx.vercel.app`
 
 #### 2. 设置超级管理员
 在 Railway 数据库的 **Query** 中执行：
@@ -222,7 +179,9 @@ UPDATE "User" SET "isSuperAdmin" = true WHERE email = '你的邮箱';
 | `JWT_SECRET` | JWT 签名密钥 | 随机字符串 |
 | `NODE_ENV` | 运行环境 | `production` |
 | `FRONTEND_URL` | 前端地址（CORS） | `https://xxx.vercel.app` |
-| `GEMINI_API_KEY` | AI 功能（可选） | Gemini API Key |
+| `AI_API_KEY` | AI 功能（可选） | API Key |
+| `AI_BASE_URL` | AI 服务端点（可选） | `https://api.kimi.com/coding/` |
+| `AI_MODEL` | AI 模型名称（可选） | `kimi-k2.5` |
 
 #### Vercel 前端
 | 变量名 | 说明 | 示例 |
@@ -236,9 +195,6 @@ UPDATE "User" SET "isSuperAdmin" = true WHERE email = '你的邮箱';
 3. 创建任务，验证数据库读写
 4. 访问 `/admin` 验证管理员权限（需先设置超级管理员）
 
-
 ## License
 
 [MIT](LICENSE) © 2026 Orbit Contributors
-
-
