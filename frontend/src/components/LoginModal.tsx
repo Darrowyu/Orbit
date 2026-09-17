@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { authApi } from '../services/api';
+import { getErrorMessage } from '../utils/error';
 import { Button, Input } from './ui';
 
 type ViewMode = 'login' | 'register' | 'forgot-email' | 'forgot-code' | 'forgot-password' | 'forgot-success';
@@ -103,14 +105,12 @@ export const LoginModal: React.FC = () => {
     setResetLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '发送失败');
+      await authApi.forgotPassword(resetEmail);
       setMode('forgot-code');
       setResendCooldown(RESEND_COOLDOWN);
       setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '发送验证码失败');
+      setError(getErrorMessage(err) || '发送验证码失败');
     } finally {
       setResetLoading(false);
     }
@@ -120,8 +120,7 @@ export const LoginModal: React.FC = () => {
     if (resendCooldown > 0) return;
     setResetLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail }) });
-      if (!res.ok) throw new Error('重发失败');
+      await authApi.forgotPassword(resetEmail);
       setResendCooldown(RESEND_COOLDOWN);
       setError('');
     } catch { setError('重发验证码失败，请稍后重试'); }
@@ -152,29 +151,25 @@ export const LoginModal: React.FC = () => {
     setResetLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/verify-reset-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail, code: codeStr }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '验证失败');
+      await authApi.verifyResetCode(resetEmail, codeStr);
       setMode('forgot-password');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '验证码错误或已过期');
+      setError(getErrorMessage(err) || '验证码错误或已过期');
     } finally {
       setResetLoading(false);
     }
   }, [resetEmail, code]);
 
   const handleResetPassword = useCallback(async () => {
-    if (newPassword.length < 6) { setError('密码至少需要6个字符'); return; }
+    if (newPassword.length < 8) { setError('密码至少需要8个字符'); return; }
     if (newPassword !== confirmPassword) { setError('两次输入的密码不一致'); return; }
     setResetLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail, code: code.join(''), password: newPassword }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '重置失败');
+      await authApi.resetPassword(resetEmail, code.join(''), newPassword);
       setMode('forgot-success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '重置密码失败');
+      setError(getErrorMessage(err) || '重置密码失败');
     } finally {
       setResetLoading(false);
     }
@@ -257,7 +252,7 @@ export const LoginModal: React.FC = () => {
               type={showPassword ? 'text' : 'password'} 
               value={newPassword} 
               onChange={e => { setNewPassword(e.target.value); setError(''); }} 
-              placeholder="新密码（至少6位）" 
+              placeholder="新密码（至少8位）" 
               size="lg"
               rightIcon={
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600">

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { TasksGateway } from '../gateway/tasks.gateway';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Logger } from '@nestjs/common';
 
@@ -13,11 +15,24 @@ interface CreateRecurringDto {
   endDate?: string;
 }
 
+// 兼容历史 stringify 写入的数据：string 则 parse，数组直接用
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+  }
+  return [];
+}
+
 @Injectable()
 export class RecurringService {
   private readonly logger = new Logger(RecurringService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+    private gateway: TasksGateway,
+  ) {}
 
   async create(dto: CreateRecurringDto, teamId: string, userId: string) {
     const template = await this.prisma.taskTemplate.findFirst({ where: { id: dto.templateId, teamId } });
@@ -76,28 +91,41 @@ export class RecurringService {
 
     for (const rt of dueRecurring) {
       try {
-        const subtasks = JSON.parse(rt.template.subtasks as string || '[]');
-        const labelIds = JSON.parse(rt.template.labelIds as string || '[]');
-        
-        const task = await this.prisma.task.create({
-          data: {
-            title: rt.template.title,
-            description: rt.template.description,
-            priority: rt.template.priority,
-            teamId: rt.teamId,
-            subtasks: { create: subtasks.map((s: string) => ({ title: s })) },
-          },
-        });
-        if (labelIds.length > 0) { // 应用模板标签
-          await this.prisma.taskLabel.createMany({ data: labelIds.map((labelId: string) => ({ taskId: task.id, labelId })) });
-        }
-
+        const subtasks = parseJsonArray(rt.template.subtasks);
+        const labelIds = parseJsonArray(rt.template.labelIds);
         const nextRun = this.calculateNextRun(now, rt.frequency, rt.interval, rt.daysOfWeek, rt.dayOfMonth ?? undefined);
-        await this.prisma.recurringTask.update({
-          where: { id: rt.id },
-          data: { lastCreated: now, nextRun },
-        });
 
+        // 乐观锁抢占执行权 + 建任务与推进 nextRun 同事务：任一步失败整体回滚，下一周期重试
+        const validLabelIds = labelIds.length > 0
+          ? (await this.prisma.label.findMany({ where: { id: { in: labelIds }, teamId: rt.teamId }, select: { id: true } })).map(l => l.id) // 过滤已删除/跨团队标签，避免 FK 报错导致周期任务每小时重试
+          : [];
+        const task = await this.prisma.$transaction(async (tx) => {
+          const claimed = await tx.recurringTask.updateMany({
+            where: { id: rt.id, nextRun: rt.nextRun },
+            data: { lastCreated: now, nextRun },
+          });
+          if (claimed.count === 0) return null; // 已被其他实例处理
+          const created = await tx.task.create({
+            data: {
+              title: rt.template.title,
+              description: rt.template.description,
+              priority: rt.template.priority,
+              teamId: rt.teamId,
+              subtasks: { create: subtasks.map((title) => ({ title })) },
+            },
+            include: { subtasks: true, labels: { include: { label: true } } },
+          });
+          if (validLabelIds.length > 0) { // 应用模板标签
+            await tx.taskLabel.createMany({ data: validLabelIds.map((labelId) => ({ taskId: created.id, labelId })), skipDuplicates: true });
+          }
+          return created;
+        });
+        if (!task) continue;
+
+        if (rt.createdBy) {
+          await this.audit.log({ action: 'CREATE', entityType: 'TASK', entityId: task.id, userId: rt.createdBy, teamId: rt.teamId, newValue: { title: task.title, source: 'recurring', recurringTaskId: rt.id } });
+        }
+        this.gateway.emitTaskCreated(rt.teamId, { ...task, labels: task.labels.map((tl) => tl.label) });
         this.logger.log(`Created recurring task from template: ${rt.template.name}`);
       } catch (e) {
         this.logger.error(`Failed to create recurring task ${rt.id}: ${e.message}`);
@@ -105,37 +133,44 @@ export class RecurringService {
     }
   }
 
+  // 统一按 UTC 计算，消除服务器时区/DST 漂移
   private calculateNextRun(from: Date, frequency: string, interval: number, daysOfWeek?: number[], dayOfMonth?: number): Date {
     const next = new Date(from);
-    
+
     switch (frequency) {
       case 'DAILY':
-        next.setDate(next.getDate() + interval);
+        next.setUTCDate(next.getUTCDate() + interval);
         break;
       case 'WEEKLY':
         if (daysOfWeek && daysOfWeek.length > 0) {
           let found = false;
           for (let i = 1; i <= 7; i++) {
             const check = new Date(next);
-            check.setDate(check.getDate() + i);
-            if (daysOfWeek.includes(check.getDay())) {
+            check.setUTCDate(check.getUTCDate() + i);
+            if (daysOfWeek.includes(check.getUTCDay())) {
               next.setTime(check.getTime());
               found = true;
               break;
             }
           }
-          if (!found) next.setDate(next.getDate() + 7 * interval);
+          if (!found) next.setUTCDate(next.getUTCDate() + 7 * interval);
         } else {
-          next.setDate(next.getDate() + 7 * interval);
+          next.setUTCDate(next.getUTCDate() + 7 * interval);
         }
         break;
-      case 'MONTHLY':
-        next.setMonth(next.getMonth() + interval);
-        if (dayOfMonth) next.setDate(Math.min(dayOfMonth, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+      case 'MONTHLY': {
+        // 先按 year/month 算术定位目标月份，再把日钳制到目标月最后一天，
+        // 避免锚点 1/31 直接 setUTCMonth(+1) 溢出到 3 月跳过 2 月
+        const totalMonths = next.getUTCFullYear() * 12 + next.getUTCMonth() + interval;
+        const targetYear = Math.floor(totalMonths / 12);
+        const targetMonth = ((totalMonths % 12) + 12) % 12;
+        const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+        next.setUTCFullYear(targetYear, targetMonth, Math.min(dayOfMonth ?? next.getUTCDate(), lastDay));
         break;
+      }
     }
-    
-    next.setHours(9, 0, 0, 0);
+
+    next.setUTCHours(9, 0, 0, 0);
     return next;
   }
 }

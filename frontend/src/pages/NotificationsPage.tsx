@@ -30,6 +30,7 @@ const getTypeStyle = (type: string) => {
         NEW_COMMENT: 'bg-cyan-50 text-cyan-600',
         TASK_DUE_SOON: 'bg-yellow-50 text-yellow-600',
         TASK_OVERDUE: 'bg-red-50 text-red-600',
+        MENTION: 'bg-violet-50 text-violet-600',
     };
     return styles[type] || 'bg-neutral-50 text-neutral-500';
 };
@@ -39,7 +40,7 @@ const getTypeIcon = (type: string) => {
         TASK_ASSIGNED: '📋', TASK_STATUS_CHANGED: '🔄', SUBTASK_COMPLETED: '✅',
         TEAM_JOINED: '🎉', ROLE_CHANGED: '👑', TEAM_MEMBER_ADDED: '👋',
         PROJECT_MEMBER_ADDED: '📂', PROJECT_MEMBER_REMOVED: '📤', PROJECT_ROLE_CHANGED: '🔐',
-        NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨',
+        NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨', MENTION: '＠',
     };
     return icons[type] || '📢';
 };

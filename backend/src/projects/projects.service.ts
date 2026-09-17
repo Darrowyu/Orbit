@@ -88,13 +88,16 @@ export class ProjectsService {
         if (taskStats.total > 0 && !options?.archiveTasks) {
             return { needConfirm: true, taskCount: taskStats.total, incompleteCount: taskStats.incomplete, message: `该项目下有 ${taskStats.total} 个任务（${taskStats.incomplete} 个未完成），是否同时归档这些任务？` };
         }
-        if (options?.archiveTasks) { // 同步归档项目下的所有任务
-            await this.prisma.task.updateMany({ where: { projectId: id, isArchived: false }, data: { isArchived: true, archivedAt: new Date() } });
-        }
-        const project = await this.prisma.project.update({
-            where: { id },
-            data: { isArchived: true, archivedAt: new Date(), status: 'ARCHIVED' },
-            include: { members: { include: { user: true } }, _count: { select: { tasks: true } } },
+        const project = await this.prisma.$transaction(async (tx) => { // 归档任务与项目需原子完成
+            if (options?.archiveTasks) { // 同步归档项目下的所有任务
+                await tx.task.updateMany({ where: { projectId: id, isArchived: false }, data: { isArchived: true, archivedAt: new Date() } });
+            }
+            // 归档只写 isArchived/archivedAt，status 保留 ACTIVE/ON_HOLD/COMPLETED 语义
+            return tx.project.update({
+                where: { id },
+                data: { isArchived: true, archivedAt: new Date() },
+                include: { members: { include: { user: true } }, _count: { select: { tasks: true } } },
+            });
         });
         return this.format(project);
     }
@@ -103,7 +106,7 @@ export class ProjectsService {
         await this.checkPermission(id, operatorId, ['owner']);
         const project = await this.prisma.project.update({
             where: { id },
-            data: { isArchived: false, archivedAt: null, status: 'ACTIVE' },
+            data: { isArchived: false, archivedAt: null }, // 不动 status，保留归档前的业务状态
             include: { members: { include: { user: true } }, _count: { select: { tasks: true } } },
         });
         return this.format(project);
@@ -152,12 +155,13 @@ export class ProjectsService {
         if (member.role === 'owner') throw new ForbiddenException('无法移除项目所有者');
         const project = await this.prisma.project.findUnique({ where: { id: projectId } });
         const operator = await this.prisma.user.findUnique({ where: { id: operatorId } });
-        await this.notifications.notifyProjectMemberRemoved(project?.name || '', member.userId, operator?.name || '某人');
         // 清理被移除成员在该项目下负责的任务
         await this.prisma.$transaction([
             this.prisma.task.updateMany({ where: { projectId, assigneeId: member.userId }, data: { assigneeId: null } }),
             this.prisma.projectMember.delete({ where: { id: memberId } }),
         ]);
+        // 事务提交成功后再发通知，避免回滚时误报"已将你移除"
+        await this.notifications.notifyProjectMemberRemoved(project?.name || '', member.userId, operator?.name || '某人');
         return this.findOne(projectId, operatorId);
     }
 
@@ -279,31 +283,30 @@ export class ProjectsService {
             where: { projectId },
             include: { user: { select: { id: true, name: true, avatar: true } } },
         });
-        const workloads: TeamMemberWorkload[] = [];
-        for (const member of members) {
-            const tasks = await this.prisma.task.findMany({
-                where: { projectId, assigneeId: member.userId, isArchived: false },
-                select: { status: true, priority: true },
-            });
-            const byStatus: Record<string, number> = {};
-            const byPriority: Record<string, number> = {};
-            tasks.forEach(t => {
-                byStatus[t.status] = (byStatus[t.status] || 0) + 1;
-                byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
-            });
-            workloads.push({
-                user: member.user,
-                total: tasks.length,
-                byStatus,
-                byPriority,
-            });
+        // 一次查询取全部任务，内存聚合，避免每成员一次查询
+        const tasks = await this.prisma.task.findMany({
+            where: { projectId, isArchived: false, assigneeId: { not: null } },
+            select: { assigneeId: true, status: true, priority: true },
+        });
+        const byMember = new Map<string, { total: number; byStatus: Record<string, number>; byPriority: Record<string, number> }>();
+        for (const t of tasks) {
+            const agg = byMember.get(t.assigneeId as string) || { total: 0, byStatus: {}, byPriority: {} };
+            agg.total += 1;
+            agg.byStatus[t.status] = (agg.byStatus[t.status] || 0) + 1;
+            agg.byPriority[t.priority] = (agg.byPriority[t.priority] || 0) + 1;
+            byMember.set(t.assigneeId as string, agg);
         }
-        return workloads;
+        return members.map(member => ({
+            user: member.user,
+            ...(byMember.get(member.userId) || { total: 0, byStatus: {}, byPriority: {} }),
+        }));
     }
 
     private async getRecentActivities(projectId: string, limit: number): Promise<ProjectActivity[]> {
+        const taskIds = (await this.prisma.task.findMany({ where: { projectId }, select: { id: true } })).map(t => t.id);
+        if (taskIds.length === 0) return [];
         const logs = await this.prisma.auditLog.findMany({
-            where: { teamId: projectId },
+            where: { entityType: 'TASK', entityId: { in: taskIds } }, // 按项目任务维度查审计（AuditLog 无 projectId 字段）
             include: { user: { select: { id: true, name: true, avatar: true } } },
             orderBy: { createdAt: 'desc' },
             take: limit,
@@ -314,7 +317,7 @@ export class ProjectsService {
             entityType: l.entityType,
             entityId: l.entityId,
             entityName: '',
-            user: l.user,
+            user: l.user ?? { id: '', name: '已注销用户', avatar: '👤' }, // 用户删除后审计保留
             createdAt: l.createdAt.toISOString(),
             metadata: { oldValue: l.oldValue, newValue: l.newValue },
         }));

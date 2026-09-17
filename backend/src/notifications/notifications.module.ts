@@ -4,12 +4,13 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsGateway } from './notifications.gateway';
+import { getJwtSecret } from '../common/jwt-config';
 
 @Module({
   imports: [
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({ secret: config.get('JWT_SECRET') }),
+      useFactory: (config: ConfigService) => ({ secret: getJwtSecret(config) }),
     }),
   ],
   controllers: [NotificationsController],

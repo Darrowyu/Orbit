@@ -1,8 +1,9 @@
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { unlinkSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { IMAGE_EXTS, getSafeExtension, hasImageMagicBytes, randomSafeFilename, validateUploadFile } from '../common/file-upload';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -12,20 +13,25 @@ export class UploadController {
     storage: diskStorage({
       destination: './uploads',
       filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `avatar-${uniqueSuffix}${extname(file.originalname)}`);
+        const ext = getSafeExtension(file.originalname);
+        cb(null, randomSafeFilename(ext, 'avatar-'));
       },
     }),
+    // 白名单校验扩展名与 mimetype（均可伪造，落盘后另有魔数校验）
     fileFilter: (req, file, cb) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-        return cb(new BadRequestException('只支持图片格式'), false);
-      }
+      const error = validateUploadFile(file, IMAGE_EXTS);
+      if (error) return cb(new BadRequestException(error), false);
       cb(null, true);
     },
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   }))
   uploadAvatar(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('请上传文件');
+    // 魔数校验文件头，不通过则删除已落盘文件
+    if (!hasImageMagicBytes(file.path, getSafeExtension(file.originalname))) {
+      try { unlinkSync(file.path); } catch { /* 文件清理失败可忽略 */ }
+      throw new BadRequestException('文件内容与图片格式不符');
+    }
     return { url: `/uploads/${file.filename}` };
   }
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsBoolean, ValidateNested, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean, ValidateNested, IsIn, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export const TASK_STATUS = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as const;
@@ -37,6 +37,21 @@ export class UpdateTaskDto {
   @IsOptional() @IsString() dueDate?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) dependsOn?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) labelIds?: string[];
+}
+
+// 批量操作 DTO（ids 上限 100，防止超大请求拖垮事务）
+export class BatchMoveDto {
+  @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) ids: string[];
+  @IsIn(TASK_STATUS) status: TaskStatusType;
+}
+
+export class BatchIdsDto {
+  @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) ids: string[];
+}
+
+export class BatchAssignDto {
+  @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) ids: string[];
+  @IsOptional() @IsString() assigneeId?: string; // 缺省表示取消指派
 }
 
 // WebSocket 传输用类型
@@ -79,6 +94,7 @@ export interface TaskDbEntity {
   updatedAt: Date;
   isArchived: boolean;
   archivedAt: Date | null;
+  completedAt?: Date | null;
   milestoneId?: string | null;
   subtasks?: Array<{ id: string; title: string; completed: boolean; assigneeId?: string | null }>;
   labels?: Array<{ label: { id: string; name: string; color: string } }>;

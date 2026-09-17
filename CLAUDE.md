@@ -4,11 +4,11 @@
 
 ## 项目概览
 
-Orbit 是一个团队任务协作平台，采用看板式任务管理。主要功能包括 AI 智能任务分解（Gemini）、实时 WebSocket 同步、项目管理和基于角色的权限控制。
+Orbit 是一个团队任务协作平台，采用看板式任务管理。主要功能包括 AI 智能任务分解、实时 WebSocket 同步、项目管理和基于角色的权限控制。
 
 - **前端**: React 18 + TypeScript + Vite + Zustand + TailwindCSS v4
 - **后端**: NestJS + Prisma + PostgreSQL + Socket.io + JWT
-- **AI**: Google Gemini API + 支持用户配置 OpenAI/DeepSeek/Kimi/智谱等第三方 AI
+- **AI**: 系统级走 Anthropic Messages API 兼容服务（Kimi 等，环境变量配置）；用户可在个人中心配置自己的 OpenAI 兼容 Key（OpenAI/DeepSeek/Moonshot/智谱/自定义，AES-256-GCM 加密存储，用户配置优先于系统配置）
 
 ## 常用命令
 
@@ -38,8 +38,8 @@ npm run test:cov         # 运行 Jest 测试并生成覆盖率报告（需要 -
 
 ### 前端 (`cd frontend/`)
 ```bash
-npm run dev              # 启动 Vite 开发服务器，端口 3000
-npm run build            # 构建生产版本
+npm run dev              # 启动 Vite 开发服务器，端口 1234
+npm run build            # 构建生产版本（tsc --noEmit 类型检查 + vite build）
 npm run preview          # 预览生产构建
 ```
 
@@ -66,7 +66,7 @@ orbit/
 │   │   ├── teams/       # 团队 CRUD + 成员管理
 │   │   ├── projects/    # 项目管理（含里程碑）
 │   │   ├── tasks/       # 任务 CRUD + 子任务 + 依赖关系
-│   │   ├── ai/          # AI 服务（Gemini + 其他厂商）
+│   │   ├── ai/          # AI 服务（系统级 Anthropic 兼容 + 用户级 OpenAI 兼容）
 │   │   ├── gateway/     # WebSocket 网关，实现实时同步
 │   │   ├── notifications/ # 应用内通知系统
 │   │   ├── prisma/      # PrismaService（数据库访问）
@@ -77,10 +77,11 @@ orbit/
 ## 核心架构模式
 
 ### 实时同步机制
+- **服务端权威事件**：REST 写路径（service 层）在事务提交后由后端向 `team:${teamId}` 房间广播；客户端不存在任务上行事件通道
 - WebSocket 事件按团队隔离（`team:${teamId}` 房间）
-- 网关在处理连接和切换团队时验证成员身份
-- 前端 socket.ts 处理断线重连并自动刷新数据
-- 事件类型：`task:created`、`task:updated`、`task:deleted`、`notification`
+- 网关连接时验证 JWT + 用户存在且未禁用；切换团队时验证成员身份
+- 前端 socket.ts 处理断线重连并自动刷新数据；本地操作与广播回声按 id 幂等去重
+- 事件类型：`task:created`、`task:updated`、`task:deleted`、`comment:created`、`comment:deleted`、`notification`
 
 ### 状态管理
 - 客户端状态使用 Zustand 管理（taskStore、authStore、teamStore 等）
@@ -89,9 +90,12 @@ orbit/
 
 ### 认证机制
 - 基于 JWT，受保护路由使用 `JwtAuthGuard`
+- `JwtStrategy.validate` 每次请求查库：拒绝已删除/被禁用用户，并注入 `currentTeamId` 到 req.user（团队边界校验的事实来源，各 controller 通过 getTeamId 守卫校验显式 teamId 的成员身份）
+- `JWT_SECRET` 启动时 fail-fast：缺失/默认值/少于 32 字符直接拒绝启动
 - Token 存储在 Zustand authStore 中（持久化）
 - Socket.io 认证使用相同的 JWT Token
-- 登录接口通过 `RateLimitMiddleware` 实现速率限制
+- 限流分两层：`RateLimitMiddleware` 为全局 HTTP 限流（按 IP 或登录用户分桶，参数见 `LOGIN_RATE_LIMIT_*` 环境变量）；登录失败锁定（邮箱 + IP 双维度，失败计入 LoginLog，同邮箱 15 分钟 5 次、同 IP 20 次）在 `AuthService.checkLoginAttempts` 中硬编码实现
+- 忘记密码：邮箱验证码（PasswordResetCode 表存 SHA-256 哈希，10 分钟有效、5 次防爆破），SMTP 未配置时验证码降级输出到服务端日志
 
 ### 数据库访问
 - 所有数据库操作通过 `PrismaService` 进行
@@ -99,26 +103,31 @@ orbit/
 - 软删除模式通过 `isArchived`/`archivedAt` 字段实现
 
 ### AI 集成
-- 系统级 Gemini Key 通过 `GEMINI_API_KEY` 环境变量配置
-- 用户可配置个人 AI Key（使用 AES-256 加密存储）
-- 支持多厂商：OpenAI、DeepSeek、Moonshot、智谱，通过 OpenAI 兼容 API 接入
+- 系统级：`AI_API_KEY`/`AI_BASE_URL`/`AI_MODEL` 环境变量，Anthropic Messages API 格式（Kimi 等兼容服务）
+- 用户级：个人中心"AI 设置"Tab 配置自己的 Key（OpenAI 兼容格式，支持 OpenAI/DeepSeek/Moonshot/智谱/自定义），AES-256-GCM 加密存储（`ENCRYPTION_KEY` 环境变量），用户配置优先于系统配置
+- AI 端点按用户限流：10 次/分钟
+- 加解密工具：`backend/src/common/crypto.util.ts`（随机 IV，解密失败抛异常）
 
 ### 文件上传
-- 使用 Multer 处理 multipart 上传
-- 文件存储在 `uploads/` 目录，通过 `/uploads/` 路径静态提供服务
+- 使用 Multer 处理 multipart 上传，**白名单校验**（`backend/src/common/file-upload.ts`）：附件限图片/PDF/办公文档/zip，头像限图片且校验魔数；扩展名与 mimetype 需匹配
+- 文件存储在 `uploads/` 目录（随机文件名），通过 `/uploads/` 路径静态提供服务，响应带 `X-Content-Type-Options: nosniff`，非图片扩展名强制 `Content-Disposition: attachment`
 - 头像上传返回公开 URL
 
 ## 环境变量
 
-### 后端（`backend/` 目录下的 `.env`）
+### 后端（`backend/` 目录下的 `.env`，模板见 `.env.example`）
 ```env
 DATABASE_URL="postgresql://postgres:密码@localhost:5432/orbit"
-JWT_SECRET="你的密钥"
+JWT_SECRET="至少32字符高熵随机密钥"  # 缺失/默认值/过短会拒绝启动
 JWT_EXPIRES_IN="7d"
-GEMINI_API_KEY="你的 Gemini Key"
+ENCRYPTION_KEY="64位hex"            # 用户级 AI Key 加密用，不设置则用户无法保存 AI Key
+AI_API_KEY="系统级 AI Key"
+AI_BASE_URL="https://api.kimi.com/coding/"
+AI_MODEL="kimi-k2.5"
 PORT=4000
-FRONTEND_URL="http://localhost:3000"
-# 可选：HTTPS_PROXY、AI_API_KEY_BACKUP、AI_BASE_URL_BACKUP
+FRONTEND_URL="http://localhost:1234"
+# 可选：SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM（忘记密码邮件；不配置则验证码输出到日志）
+# 可选：LOGIN_RATE_LIMIT_WINDOW_MS、LOGIN_RATE_LIMIT_MAX、HTTPS_PROXY
 ```
 
 ### 前端（`frontend/` 目录下的 `.env`）

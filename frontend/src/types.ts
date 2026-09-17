@@ -177,7 +177,11 @@ export interface TimeEntry {
   user?: { id: string; name: string; avatar: string; color: string };
 }
 
-export type NotificationType = 'TASK_ASSIGNED' | 'TASK_STATUS_CHANGED' | 'SUBTASK_COMPLETED' | 'TEAM_JOINED' | 'ROLE_CHANGED' | 'TEAM_MEMBER_ADDED' | 'MENTION';
+export type NotificationType =
+  | 'TASK_ASSIGNED' | 'TASK_STATUS_CHANGED' | 'SUBTASK_COMPLETED'
+  | 'TEAM_JOINED' | 'ROLE_CHANGED' | 'TEAM_MEMBER_ADDED'
+  | 'PROJECT_MEMBER_ADDED' | 'PROJECT_MEMBER_REMOVED' | 'PROJECT_ROLE_CHANGED'
+  | 'NEW_COMMENT' | 'TASK_DUE_SOON' | 'TASK_OVERDUE' | 'MENTION'; // 与后端 notifications.service.ts 保持一致
 
 export interface Notification {
   id: string;
@@ -229,4 +233,23 @@ export interface ProjectCockpitData {
   cumulativeFlow: { date: string; TODO: number; IN_PROGRESS: number; REVIEW: number; DONE: number }[];
   teamWorkload: { user: { id: string; name: string; avatar: string; color: string }; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> }[];
   activities: ProjectActivity[];
+}
+
+// 用户级 AI 配置（保存用，apiKey 为明文上送、服务端加密存储）
+export interface AiConfig {
+  aiProvider?: string;
+  aiApiKey?: string; // 非空=更新，空串=清除，不传=不修改
+  aiBaseUrl?: string;
+  aiModelName?: string;
+  aiPrompt?: string;
+}
+
+// 服务端返回的脱敏 AI 配置（apiKey 仅 masked 形式）
+export interface AiConfigMasked {
+  aiProvider: string | null;
+  aiApiKey: string | null; // 如 sk-****1234
+  aiBaseUrl: string | null;
+  aiModelName: string | null;
+  aiPrompt: string | null;
+  isConfigured: boolean;
 }

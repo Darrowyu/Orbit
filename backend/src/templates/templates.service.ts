@@ -10,6 +10,15 @@ interface CreateTemplateDto {
   labelIds?: string[];
 }
 
+// 兼容历史 stringify 写入的数据：string 则 parse，数组直接用
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+  }
+  return [];
+}
+
 @Injectable()
 export class TemplatesService {
   constructor(private prisma: PrismaService) {}
@@ -21,8 +30,8 @@ export class TemplatesService {
         title: dto.title,
         description: dto.description || '',
         priority: dto.priority || 'MEDIUM',
-        subtasks: JSON.stringify(dto.subtasks || []),
-        labelIds: JSON.stringify(dto.labelIds || []),
+        subtasks: dto.subtasks || [],
+        labelIds: dto.labelIds || [],
         teamId,
         createdBy: userId,
       },
@@ -31,13 +40,13 @@ export class TemplatesService {
 
   async findAll(teamId: string) {
     const templates = await this.prisma.taskTemplate.findMany({ where: { teamId }, orderBy: { createdAt: 'desc' } });
-    return templates.map(t => ({ ...t, subtasks: JSON.parse(t.subtasks as string), labelIds: JSON.parse(t.labelIds as string) }));
+    return templates.map(t => ({ ...t, subtasks: parseJsonArray(t.subtasks), labelIds: parseJsonArray(t.labelIds) }));
   }
 
   async findOne(id: string, teamId: string) {
     const t = await this.prisma.taskTemplate.findFirst({ where: { id, teamId } });
     if (!t) throw new NotFoundException('模板不存在');
-    return { ...t, subtasks: JSON.parse(t.subtasks as string), labelIds: JSON.parse(t.labelIds as string) };
+    return { ...t, subtasks: parseJsonArray(t.subtasks), labelIds: parseJsonArray(t.labelIds) };
   }
 
   async update(id: string, dto: Partial<CreateTemplateDto>, teamId: string, userId: string) {
@@ -49,11 +58,7 @@ export class TemplatesService {
     }
     return this.prisma.taskTemplate.update({
       where: { id },
-      data: {
-        ...dto,
-        subtasks: dto.subtasks ? JSON.stringify(dto.subtasks) : undefined,
-        labelIds: dto.labelIds ? JSON.stringify(dto.labelIds) : undefined,
-      },
+      data: { ...dto },
     });
   }
 

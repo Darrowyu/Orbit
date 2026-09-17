@@ -24,7 +24,7 @@ export class AdminController {
   toggleStatus(@Param('id') id: string, @Request() req: AuthenticatedRequest) { return this.adminService.toggleUserStatus(id, req.user.id); }
 
   @Post('users/:id/reset-password')
-  resetPassword(@Param('id') id: string, @Body() body: { password: string }) { return this.adminService.resetPassword(id, body.password); }
+  resetPassword(@Param('id') id: string, @Body() body: { password: string }, @Request() req: AuthenticatedRequest) { return this.adminService.resetPassword(id, body.password, req.user.id); }
 
   @Post('users/:id/set-admin')
   setAdmin(@Param('id') id: string, @Query('value') value: string, @Request() req: AuthenticatedRequest) { return this.adminService.setSuperAdmin(id, value === 'true', req.user.id); }
@@ -55,7 +55,7 @@ export class AdminController {
   transferOwnership(@Param('id') id: string, @Body() body: { newOwnerId: string }) { return this.adminService.transferTeamOwnership(id, body.newOwnerId); }
 
   @Delete('teams/:id')
-  dissolveTeam(@Param('id') id: string) { return this.adminService.dissolveTeam(id); }
+  dissolveTeam(@Param('id') id: string, @Request() req: AuthenticatedRequest) { return this.adminService.dissolveTeam(id, req.user.id); }
 
   @Get('projects')
   getProjects(@Query() query: { page?: string; limit?: string; status?: string; teamId?: string; search?: string }) {

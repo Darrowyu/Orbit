@@ -10,8 +10,8 @@ export class RateLimitMiddleware implements NestMiddleware {
   private readonly store = new Map<string, RateLimitRecord>();
 
   constructor() {
-    this.windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10); // 默认1分钟
-    this.maxRequests = parseInt(process.env.RATE_LIMIT_MAX || '100', 10); // 默认100次/分钟
+    this.windowMs = parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || '60000', 10); // 默认1分钟
+    this.maxRequests = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || '100', 10); // 默认100次/分钟
     setInterval(() => this.cleanup(), this.windowMs); // 定期清理过期记录
   }
 

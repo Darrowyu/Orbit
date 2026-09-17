@@ -2,7 +2,11 @@ import React, { memo, useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User } from '../types';
 import { TaskCard } from './TaskCard';
-import { Badge } from './ui';
+import { Badge, Button, Select } from './ui';
+import { taskApi, BatchResult } from '../services/api';
+import { useTaskStore } from '../stores/taskStore';
+import { useDialog } from './ConfirmDialog';
+import { getErrorMessage } from '../utils/error';
 
 const COLUMN_ICONS = {
   [TaskStatus.TODO]: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
@@ -32,6 +36,7 @@ interface KanbanBoardProps {
   onAssignSubtask: (taskId: string, subtaskId: string, assigneeId: string) => Promise<void>;
   onCreateFromSubtask: (subtaskTitle: string, parentTaskId: string, parentTitle: string, parentDescription: string) => Promise<void>;
   onShowArchived: () => void;
+  selectionMode: boolean; // 批量多选模式
 }
 
 // 依赖连线组件
@@ -98,10 +103,70 @@ DependencyLines.displayName = 'DependencyLines';
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
   tasks, members, sortOption, searchQuery, filterAssignee,
-  onMove, onEdit, onDelete, onArchive, onToggleSubtask, onAssignSubtask, onCreateFromSubtask, onShowArchived
+  onMove, onEdit, onDelete, onArchive, onToggleSubtask, onAssignSubtask, onCreateFromSubtask, onShowArchived, selectionMode
 }) => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+  const { fetchTasks } = useTaskStore();
+  const { confirm, alert } = useDialog();
+
+  // 退出多选模式时清空勾选
+  useEffect(() => { if (!selectionMode) setCheckedIds(new Set()); }, [selectionMode]);
+
+  const handleCheckChange = useCallback((taskId: string, checked: boolean) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(taskId); else next.delete(taskId);
+      return next;
+    });
+  }, []);
+
+  // 批量操作统一入口：失败明细用 alert 展示，成功后刷新任务列表
+  const runBatch = useCallback(async (action: () => Promise<{ data: BatchResult }>, actionName: string) => {
+    const ids = Array.from(checkedIds);
+    if (ids.length === 0) return;
+    setBatchLoading(true);
+    try {
+      const { data } = await action();
+      if (data.failed > 0) {
+        const titleOf = (id: string) => tasks.find((t) => t.id === id)?.title || id;
+        await alert({
+          title: `${actionName}部分失败`,
+          message: `成功 ${data.succeeded} 个，失败 ${data.failed} 个：${data.errors.map((e) => `「${titleOf(e.id)}」${e.reason}`).join('；')}`,
+          type: 'warning',
+        });
+      }
+      await fetchTasks();
+      setCheckedIds(new Set());
+    } catch (err) {
+      await alert({ title: `${actionName}失败`, message: getErrorMessage(err), type: 'danger' });
+    } finally { setBatchLoading(false); }
+  }, [checkedIds, tasks, fetchTasks, alert]);
+
+  const handleBatchMove = useCallback((status: string) => {
+    const ids = Array.from(checkedIds);
+    void runBatch(() => taskApi.batchMove(ids, status), '批量移动');
+  }, [checkedIds, runBatch]);
+
+  const handleBatchAssign = useCallback((assigneeId: string) => {
+    const ids = Array.from(checkedIds);
+    void runBatch(() => taskApi.batchAssign(ids, assigneeId), '批量指派');
+  }, [checkedIds, runBatch]);
+
+  const handleBatchArchive = useCallback(() => {
+    const ids = Array.from(checkedIds);
+    void runBatch(() => taskApi.batchArchive(ids), '批量归档');
+  }, [checkedIds, runBatch]);
+
+  const handleBatchDelete = useCallback(async () => {
+    const ids = Array.from(checkedIds);
+    if (ids.length === 0) return;
+    if (await confirm({ title: '批量删除', message: `确定删除选中的 ${ids.length} 个任务吗？此操作不可恢复。`, type: 'danger', confirmText: '删除' })) {
+      await runBatch(() => taskApi.batchDelete(ids), '批量删除');
+    }
+  }, [checkedIds, confirm, runBatch]);
 
   const onDragEnd = useCallback(async (result: DropResult) => {
     setIsDragging(false);
@@ -140,6 +205,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
   }, [selectedTaskId, tasks]);
 
   return (
+    <>
     <main className={`flex-1 overflow-x-auto overflow-y-hidden relative ${isDragging ? 'select-none' : ''}`} id="kanban-board-container" onClick={() => setSelectedTaskId(null)}>
       <DependencyLines tasks={tasks} selectedTaskId={selectedTaskId} isDragging={isDragging} />
       <DragDropContext onDragEnd={onDragEnd} onDragStart={onDragStart}>
@@ -165,7 +231,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
                     <div {...provided.droppableProps} ref={provided.innerRef} className={`flex-1 rounded-2xl p-3 transition-all duration-200 ${snapshot.isDraggingOver ? 'bg-[#001C3D]/5 ring-2 ring-[#001C3D]/20 ring-inset' : col.color}`} style={{ minHeight: '150px' }}>
                       <div className="flex flex-col gap-3">
                         {colTasks.map((task, idx) => (
-                          <Draggable key={task.id} draggableId={task.id} index={idx} isDragDisabled={sortOption !== 'DEFAULT'}>
+                          <Draggable key={task.id} draggableId={task.id} index={idx} isDragDisabled={sortOption !== 'DEFAULT' || selectionMode}>
                             {(prov, snap) => (
                               <TaskCard
                                 task={task}
@@ -185,6 +251,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
                                 draggableProps={prov.draggableProps}
                                 dragHandleProps={prov.dragHandleProps}
                                 style={prov.draggableProps.style}
+                                selectionMode={selectionMode}
+                                checked={checkedIds.has(task.id)}
+                                onCheckChange={handleCheckChange}
                               />
                             )}
                           </Draggable>
@@ -200,6 +269,44 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = memo(({
         </div>
       </DragDropContext>
     </main>
+
+    {/* 批量操作浮动栏 */}
+    {selectionMode && checkedIds.size > 0 && (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-white rounded-2xl shadow-[var(--shadow-brand-lg)] border border-slate-200 animate-fade-in-down">
+        <span className="text-sm font-medium text-slate-700 whitespace-nowrap">已选 {checkedIds.size} 项</span>
+        <div className="w-px h-5 bg-slate-200" />
+        <div className="w-32">
+          <Select
+            size="sm"
+            value=""
+            onChange={(e) => { if (e.target.value) handleBatchMove(e.target.value); }}
+            options={[
+              { value: '', label: '移动到...' },
+              { value: TaskStatus.TODO, label: '待处理' },
+              { value: TaskStatus.IN_PROGRESS, label: '进行中' },
+              { value: TaskStatus.REVIEW, label: '审核中' },
+              { value: TaskStatus.DONE, label: '已完成' },
+            ]}
+          />
+        </div>
+        <div className="w-32">
+          <Select
+            size="sm"
+            value=""
+            onChange={(e) => { if (e.target.value) handleBatchAssign(e.target.value === '-' ? '' : e.target.value); }}
+            options={[
+              { value: '', label: '指派给...' },
+              { value: '-', label: '取消指派' },
+              ...members.map((m) => ({ value: m.id, label: m.name })),
+            ]}
+          />
+        </div>
+        <Button size="sm" variant="secondary" onClick={handleBatchArchive} isLoading={batchLoading}>归档</Button>
+        <Button size="sm" variant="danger" onClick={handleBatchDelete} isLoading={batchLoading}>删除</Button>
+        <Button size="sm" variant="ghost" onClick={() => setCheckedIds(new Set())}>清空</Button>
+      </div>
+    )}
+    </>
   );
 });
 

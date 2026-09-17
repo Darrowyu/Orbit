@@ -35,7 +35,7 @@ export const NotificationBell: React.FC = () => {
     TASK_ASSIGNED: '📋', TASK_STATUS_CHANGED: '🔄', SUBTASK_COMPLETED: '✅',
     TEAM_JOINED: '🎉', ROLE_CHANGED: '👑', TEAM_MEMBER_ADDED: '👋',
     PROJECT_MEMBER_ADDED: '📂', PROJECT_MEMBER_REMOVED: '📤', PROJECT_ROLE_CHANGED: '🔐',
-    NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨',
+    NEW_COMMENT: '💬', TASK_DUE_SOON: '⏰', TASK_OVERDUE: '🚨', MENTION: '＠',
   };
 
   const goToNotifications = () => { setIsOpen(false); navigate('/notifications'); };

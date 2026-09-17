@@ -5,6 +5,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { TeamRole } from '../types';
 import { useDialog } from './ConfirmDialog';
+import { LabelManager } from './LabelManager';
+import { RecurringTaskList } from './RecurringTaskList';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
@@ -14,6 +16,8 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
   const { startTour, resetTour } = useOnboardingStore();
   const { confirm } = useDialog();
   const [copied, setCopied] = useState(false);
+  const [showLabelManager, setShowLabelManager] = useState(false);
+  const [showRecurring, setShowRecurring] = useState(false);
 
   if (!isOpen || !currentTeam) return null;
 
@@ -57,6 +61,7 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
   const roleVariants: Record<TeamRole, 'warning' | 'info' | 'default'> = { owner: 'warning', admin: 'info', member: 'default' };
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title="团队设置" size="lg">
       <div className="p-6 overflow-y-auto flex-1 space-y-6">
         {teams.length > 1 && (
@@ -73,6 +78,13 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">邀请链接</label>
           <Button variant="secondary" onClick={copyLink} isFullWidth>复制邀请链接</Button>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">标签与周期任务</label>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setShowLabelManager(true)} className="flex-1" leftIcon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>}>管理标签</Button>
+            <Button variant="secondary" onClick={() => setShowRecurring(true)} className="flex-1" leftIcon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>周期任务</Button>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">团队成员 ({currentTeam.members.length})</label>
@@ -110,5 +122,8 @@ export const TeamSettings: React.FC<Props> = ({ isOpen, onClose }) => {
         <Button variant="ghost" onClick={onClose} isFullWidth>关闭</Button>
       </div>
     </Modal>
+    <LabelManager isOpen={showLabelManager} onClose={() => setShowLabelManager(false)} />
+    <RecurringTaskList isOpen={showRecurring} onClose={() => setShowRecurring(false)} />
+    </>
   );
 };

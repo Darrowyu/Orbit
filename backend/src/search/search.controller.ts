@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SearchService } from './search.service';
 
@@ -10,6 +10,7 @@ export class SearchController {
   @Get()
   search(@Req() req, @Query('q') query: string, @Query('limit') limit?: string) {
     if (!query || query.length < 2) return { tasks: [], projects: [], comments: [] };
+    if (!req.user.currentTeamId) throw new ForbiddenException('请先加入或创建团队');
     return this.service.search(req.user.currentTeamId, query, limit ? parseInt(limit) : 10);
   }
 }

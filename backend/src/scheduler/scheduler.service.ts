@@ -1,13 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsService, NotificationType } from '../notifications/notifications.service';
 
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
-  private notifiedDueSoon = new Set<string>();
-  private notifiedOverdue = new Set<string>();
 
   constructor(
     private prisma: PrismaService,
@@ -26,6 +24,16 @@ export class SchedulerService {
     }
   }
 
+  // 同任务同类型 24h 内已发过则跳过（DB 查重，重启/多实例不丢状态）
+  private async hasRecentNotification(userId: string, type: NotificationType, taskId: string): Promise<boolean> {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await this.prisma.notification.findFirst({
+      where: { userId, type, createdAt: { gte: since }, data: { path: ['taskId'], equals: taskId } },
+      select: { id: true },
+    });
+    return !!existing;
+  }
+
   private async notifyDueSoonTasks(now: Date): Promise<void> {
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const tasks = await this.prisma.task.findMany({
@@ -39,11 +47,9 @@ export class SchedulerService {
 
     for (const task of tasks) {
       await this.safeNotify(async () => {
-        const key = `${task.id}-${task.dueDate?.toDateString()}`;
-        if (task.assigneeId && task.dueDate && !this.notifiedDueSoon.has(key)) {
-          await this.notifications.notifyTaskDueSoon(task.title, task.assigneeId, task.dueDate);
-          this.notifiedDueSoon.add(key);
-        }
+        if (!task.assigneeId || !task.dueDate) return;
+        if (await this.hasRecentNotification(task.assigneeId, 'TASK_DUE_SOON', task.id)) return;
+        await this.notifications.notifyTaskDueSoon(task.title, task.assigneeId, task.dueDate, task.id);
       }, `due soon notification for task ${task.id}`);
     }
   }
@@ -60,11 +66,9 @@ export class SchedulerService {
 
     for (const task of tasks) {
       await this.safeNotify(async () => {
-        const key = `${task.id}-overdue`;
-        if (task.assigneeId && !this.notifiedOverdue.has(key)) {
-          await this.notifications.notifyTaskOverdue(task.title, task.assigneeId);
-          this.notifiedOverdue.add(key);
-        }
+        if (!task.assigneeId) return;
+        if (await this.hasRecentNotification(task.assigneeId, 'TASK_OVERDUE', task.id)) return;
+        await this.notifications.notifyTaskOverdue(task.title, task.assigneeId, task.id);
       }, `overdue notification for task ${task.id}`);
     }
   }
@@ -74,32 +78,6 @@ export class SchedulerService {
       await notifyFn();
     } catch (error) {
       this.logger.error(`Failed to send ${context}:`, error);
-    }
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async cleanupNotificationCache() {
-    try {
-      const doneTasks = await this.prisma.task.findMany({
-        where: { status: 'DONE' },
-        select: { id: true },
-      });
-
-      const doneIds = new Set(doneTasks.map(t => t.id));
-      this.cleanupSet(this.notifiedDueSoon, doneIds);
-      this.cleanupSet(this.notifiedOverdue, doneIds);
-
-      this.logger.log('Notification cache cleaned');
-    } catch (error) {
-      this.logger.error('Failed to cleanup notification cache:', error);
-    }
-  }
-
-  private cleanupSet(set: Set<string>, doneIds: Set<string>): void {
-    for (const key of set) {
-      if (doneIds.has(key.split('-')[0])) {
-        set.delete(key);
-      }
     }
   }
 }

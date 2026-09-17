@@ -2,8 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userApi } from '../services/api';
+import { AiConfigMasked } from '../types';
 import { useDialog } from '../components/ConfirmDialog';
 import { Button, Input, Avatar, Badge } from '../components/ui';
+
+const AI_PROVIDERS = [
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'moonshot', label: 'Moonshot（Kimi）' },
+  { value: 'zhipu', label: '智谱（GLM）' },
+  { value: 'custom', label: '自定义' },
+] as const;
 
 const AVATAR_CATEGORIES = [
   { key: 'face', label: '表情', items: ['😊', '😎', '🤓', '🧐', '😄', '🥳', '😇', '🤩', '😏', '🥰', '😋', '🤗', '😴', '🤔', '🙃', '😜'] },
@@ -32,7 +41,7 @@ export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [tab, setTab] = useState<'profile' | 'teams' | 'password'>('profile');
+  const [tab, setTab] = useState<'profile' | 'teams' | 'password' | 'ai'>('profile');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [color, setColor] = useState(user?.color || '');
   const [name, setName] = useState(user?.name || '');
@@ -45,11 +54,27 @@ export const ProfilePage: React.FC = () => {
   const [confirmPwd, setConfirmPwd] = useState('');
   const [pwdError, setPwdError] = useState('');
   const [avatarCategory, setAvatarCategory] = useState<string>('face');
+  // AI 设置
+  const [aiProvider, setAiProvider] = useState('deepseek');
+  const [aiApiKey, setAiApiKey] = useState(''); // 留空表示不修改
+  const [aiMaskedKey, setAiMaskedKey] = useState<string | null>(null);
+  const [aiBaseUrl, setAiBaseUrl] = useState('');
+  const [aiModelName, setAiModelName] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiSaving, setAiSaving] = useState(false);
 
   const { alert } = useDialog();
   useEffect(() => {
     let cancelled = false;
     userApi.getMyTeams().then(({ data }) => { if (!cancelled) setTeams(data); });
+    userApi.getAiConfig().then(({ data }: { data: AiConfigMasked }) => {
+      if (cancelled) return;
+      setAiProvider(data.aiProvider || 'deepseek');
+      setAiMaskedKey(data.aiApiKey);
+      setAiBaseUrl(data.aiBaseUrl || '');
+      setAiModelName(data.aiModelName || '');
+      setAiPrompt(data.aiPrompt || '');
+    }).catch(() => { /* 未配置时忽略 */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -95,10 +120,36 @@ export const ProfilePage: React.FC = () => {
     } catch (e: unknown) { setPwdError((e as { response?: { data?: { message?: string } } }).response?.data?.message || '修改失败'); }
   };
 
+  // 保存 AI 配置：Key 留空不修改，仅在输入了新值时上送
+  const handleSaveAiConfig = async () => {
+    setAiSaving(true);
+    try {
+      const payload: { aiProvider: string; aiBaseUrl: string; aiModelName: string; aiPrompt: string; aiApiKey?: string } = {
+        aiProvider, aiBaseUrl, aiModelName, aiPrompt,
+      };
+      if (aiApiKey.trim()) payload.aiApiKey = aiApiKey.trim();
+      const { data } = await userApi.updateAiConfig(payload);
+      setAiMaskedKey(data.aiApiKey);
+      setAiApiKey('');
+      await alert({ title: '保存成功', message: 'AI 配置已更新', type: 'info' });
+    } catch { await alert({ title: '保存失败', message: '请稍后重试', type: 'danger' }); }
+    setAiSaving(false);
+  };
+
+  const handleClearAiKey = async () => {
+    try {
+      const { data } = await userApi.updateAiConfig({ aiApiKey: '' }); // 空串表示清除
+      setAiMaskedKey(data.aiApiKey);
+      setAiApiKey('');
+      await alert({ title: '已清除', message: 'API Key 已清除', type: 'info' });
+    } catch { await alert({ title: '操作失败', message: '请稍后重试', type: 'danger' }); }
+  };
+
   const tabs = [
     { key: 'profile', label: '资料' },
     { key: 'teams', label: '团队' },
     { key: 'password', label: '密码' },
+    { key: 'ai', label: 'AI 设置' },
   ] as const;
 
   return (
@@ -230,6 +281,65 @@ export const ProfilePage: React.FC = () => {
               <Input type="password" label="新密码" value={newPwd} onChange={(e) => { setNewPwd(e.target.value); setPwdError(''); }} placeholder="至少6位" />
               <Input type="password" label="确认新密码" value={confirmPwd} onChange={(e) => { setConfirmPwd(e.target.value); setPwdError(''); }} error={!!pwdError} errorText={pwdError} />
               <Button onClick={handleChangePassword}>修改密码</Button>
+            </div>
+          </div>
+        )}
+
+        {/* AI 设置 */}
+        {tab === 'ai' && (
+          <div className="minimal-card p-6 max-w-lg animate-fade-in">
+            <p className="text-sm text-neutral-400 mb-6">配置个人 AI 服务后，AI 任务分解等功能将优先使用你的 Key，未配置则使用系统默认。</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-600 mb-1.5">服务商</label>
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-400 transition-colors"
+                >
+                  {AI_PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <Input
+                  type="password"
+                  label="API Key"
+                  value={aiApiKey}
+                  onChange={(e) => setAiApiKey(e.target.value)}
+                  placeholder={aiMaskedKey ? `已配置：${aiMaskedKey}（留空不修改）` : '输入你的 API Key'}
+                  autoComplete="new-password"
+                />
+                {aiMaskedKey && (
+                  <button onClick={handleClearAiKey} className="mt-1.5 text-xs text-red-500 hover:text-red-600 transition-colors">清除已保存的 Key</button>
+                )}
+              </div>
+              <Input
+                type="text"
+                label="Base URL（可选）"
+                value={aiBaseUrl}
+                onChange={(e) => setAiBaseUrl(e.target.value)}
+                placeholder="留空使用服务商默认地址，自定义服务商必填"
+              />
+              <Input
+                type="text"
+                label="模型名（可选）"
+                value={aiModelName}
+                onChange={(e) => setAiModelName(e.target.value)}
+                placeholder="留空使用默认模型，如 deepseek-chat"
+              />
+              <div>
+                <label className="block text-sm font-medium text-neutral-600 mb-1.5">自定义提示词（可选）</label>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={4}
+                  placeholder="用于任务分解的自定义提示词，可用 {title} 引用任务标题"
+                  className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-400 transition-colors resize-none"
+                />
+              </div>
+              <div className="pt-2">
+                <Button onClick={handleSaveAiConfig} isLoading={aiSaving}>{aiSaving ? '保存中...' : '保存'}</Button>
+              </div>
             </div>
           </div>
         )}

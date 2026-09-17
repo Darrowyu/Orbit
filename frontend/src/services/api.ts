@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry, ProjectCockpitData } from '../types';
+import { Task, User, AIResponse, Team, TeamMember, Notification, Project, ProjectStats, Label, Attachment, Milestone, TaskTemplate, TimeEntry, ProjectCockpitData, AiConfig, AiConfigMasked } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL 
@@ -29,6 +29,9 @@ export const authApi = {
   login: (email: string, password: string) => api.post<{ user: User; token: string }>('/auth/login', { email, password }),
   register: (data: { email: string; password: string; name: string }) => api.post<{ user: User; token: string }>('/auth/register', data),
   me: () => api.get<User>('/auth/me'),
+  forgotPassword: (email: string) => api.post<{ success: boolean }>('/auth/forgot-password', { email }),
+  verifyResetCode: (email: string, code: string) => api.post<{ success: boolean }>('/auth/verify-reset-code', { email, code }),
+  resetPassword: (email: string, code: string, password: string) => api.post<{ success: boolean }>('/auth/reset-password', { email, code, password }),
 };
 
 export const teamApi = {
@@ -48,19 +51,27 @@ export interface TaskListResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+// 批量操作响应：逐条成功/失败 + 失败原因明细
+export interface BatchResult {
+  succeeded: number;
+  failed: number;
+  errors: { id: string; reason: string }[];
+}
+
 export const taskApi = {
   getAll: (params?: { page?: number; limit?: number; projectId?: string }) => api.get<TaskListResponse>('/tasks', { params }),
+  getOne: (id: string) => api.get<Task>(`/tasks/${id}`),
   getArchived: () => api.get<Task[]>('/tasks/archived'),
   create: (data: Partial<Task>) => api.post<Task>('/tasks', data),
   update: (id: string, data: Partial<Task>) => api.patch<Task>(`/tasks/${id}`, data),
   delete: (id: string) => api.delete(`/tasks/${id}`),
   archive: (id: string) => api.patch<Task>(`/tasks/${id}/archive`),
   restore: (id: string) => api.patch<Task>(`/tasks/${id}/restore`),
-  // 批量操作
-  batchMove: (ids: string[], status: string) => api.post<{ success: number; failed: number }>('/tasks/batch/move', { ids, status }),
-  batchDelete: (ids: string[]) => api.post<{ success: number; failed: number }>('/tasks/batch/delete', { ids }),
-  batchArchive: (ids: string[]) => api.post<{ success: number; failed: number }>('/tasks/batch/archive', { ids }),
-  batchAssign: (ids: string[], assigneeId: string) => api.post<{ success: number; failed: number }>('/tasks/batch/assign', { ids, assigneeId }),
+  // 批量操作（响应结构与后端 tasks.service 一致）
+  batchMove: (ids: string[], status: string) => api.post<BatchResult>('/tasks/batch/move', { ids, status }),
+  batchDelete: (ids: string[]) => api.post<BatchResult>('/tasks/batch/delete', { ids }),
+  batchArchive: (ids: string[]) => api.post<BatchResult>('/tasks/batch/archive', { ids }),
+  batchAssign: (ids: string[], assigneeId: string) => api.post<BatchResult>('/tasks/batch/assign', { ids, assigneeId }),
 };
 
 export const userApi = {
@@ -69,6 +80,8 @@ export const userApi = {
   changePassword: (oldPassword: string, newPassword: string) => api.post('/users/change-password', { oldPassword, newPassword }),
   updateProfile: (data: { name?: string; avatar?: string; color?: string; skills?: string[]; aiPrompt?: string }) => api.post('/users/profile', data),
   getMyTeams: () => api.get('/users/my-teams'),
+  getAiConfig: () => api.get<AiConfigMasked>('/users/me/ai-config'),
+  updateAiConfig: (data: AiConfig) => api.put<AiConfigMasked>('/users/me/ai-config', data),
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -113,6 +126,9 @@ export interface NotificationPreference {
   taskOverdue: boolean;
   newComment: boolean;
   projectMemberAdded: boolean;
+  projectMemberRemoved: boolean;
+  projectRoleChanged: boolean;
+  mention: boolean;
   teamJoined: boolean;
   browserPush: boolean;
 }

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Input } from './ui/Input';
 import { searchApi, SearchResult } from '../services/api';
 import { Badge } from './ui/Badge';
+import { openModalStack } from './ui/Modal';
 import { STATUS_LABELS, STATUS_BADGE_VARIANTS } from '../constants/status';
 
 interface GlobalSearchProps {
@@ -16,15 +17,19 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelectTask, onSele
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+  const seqRef = useRef(0); // 请求序号，防响应乱序
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) { setResults(null); return; }
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const { data } = await searchApi.search(q);
+      if (seq !== seqRef.current) return; // 已有更新的请求，丢弃旧响应
       setResults(data);
       setIsOpen(true);
-    } finally { setLoading(false); }
+    } catch { /* 搜索失败静默，保留旧结果 */ }
+    finally { if (seq === seqRef.current) setLoading(false); }
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +54,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelectTask, onSele
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        if (openModalStack.length > 0) return; // 弹窗/抽屉打开时不触发
         e.preventDefault();
         const input = wrapperRef.current?.querySelector('input');
         input?.focus();

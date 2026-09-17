@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task, Priority, TaskStatus, User, Subtask } from '../types';
 import { Badge, Avatar, IconButton } from './ui';
+import { Tag } from './ui/Tag';
 
 interface TaskCardProps {
   task: Task;
@@ -22,6 +23,10 @@ interface TaskCardProps {
   style?: React.CSSProperties;
   teamMembers: User[];
   isArchiveView?: boolean;
+  // 批量多选模式
+  selectionMode?: boolean;
+  checked?: boolean;
+  onCheckChange?: (taskId: string, checked: boolean) => void;
 }
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
@@ -30,7 +35,7 @@ const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
   return <Badge variant={variants[priority]} size="sm">{labels[priority]}</Badge>;
 };
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDelete, onArchive, onRestore, onToggleSubtask, onAssignSubtask, onCreateFromSubtask, isSelected, dependencyType = 'none', onSelect, isDragging, dragHandleProps, draggableProps, innerRef, style, teamMembers, isArchiveView }) => {
+const TaskCardComponent: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDelete, onArchive, onRestore, onToggleSubtask, onAssignSubtask, onCreateFromSubtask, isSelected, dependencyType = 'none', onSelect, isDragging, dragHandleProps, draggableProps, innerRef, style, teamMembers, isArchiveView, selectionMode, checked, onCheckChange }) => {
   const [hoveredSubtask, setHoveredSubtask] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const completed = task.subtasks.filter((s) => s.completed).length;
@@ -61,9 +66,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
   };
 
   return (
-    <div ref={innerRef} {...draggableProps} {...dragHandleProps} style={style} id={`task-${task.id}`} onClick={() => !isDragging && onSelect?.(task.id)} className={`bg-white p-4 rounded-2xl shadow-[var(--shadow-sm)] border group relative flex flex-col gap-3 transition-all duration-200 ${isDragging ? 'shadow-[var(--shadow-brand-xl)] rotate-2 ring-2 ring-[#001C3D] z-50 opacity-95' : getBorder()}`}>
+    <div ref={innerRef} {...draggableProps} {...dragHandleProps} style={style} id={`task-${task.id}`} onClick={() => !isDragging && (selectionMode ? onCheckChange?.(task.id, !checked) : onSelect?.(task.id))} className={`bg-white p-4 rounded-2xl shadow-[var(--shadow-sm)] border group relative flex flex-col gap-3 transition-all duration-200 ${isDragging ? 'shadow-[var(--shadow-brand-xl)] rotate-2 ring-2 ring-[#001C3D] z-50 opacity-95' : getBorder()}`}>
       <div className="flex justify-between items-start">
         <PriorityBadge priority={task.priority} />
+        {selectionMode ? (
+          <input
+            type="checkbox"
+            checked={!!checked}
+            onChange={(e) => onCheckChange?.(task.id, e.target.checked)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-4 h-4 rounded border-slate-300 text-[#001C3D] focus:ring-[#001C3D]/20 cursor-pointer"
+          />
+        ) : (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {isArchiveView ? (
             <IconButton size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onRestore?.(task.id); }} onMouseDown={(e) => e.stopPropagation()} title="恢复" className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50">
@@ -85,11 +100,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onMove, onEdit, onDele
             </>
           )}
         </div>
+        )}
       </div>
       <div className="min-w-0">
         <h3 className="text-slate-900 font-semibold mb-1 cursor-grab active:cursor-grabbing leading-tight break-words line-clamp-3">{task.title}</h3>
         <p className="text-slate-500 text-xs line-clamp-2 break-words">{task.description}</p>
       </div>
+      {task.labels && task.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {task.labels.map((l) => <Tag key={l.id} color={l.color}>{l.name}</Tag>)}
+        </div>
+      )}
       {dependencyType !== 'none' && !isSelected && <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-opacity-10 w-fit ${dependencyType === 'dependency' ? 'bg-amber-500 text-amber-600' : 'bg-purple-500 text-purple-600'}`}>{dependencyType === 'dependency' ? '← 前置' : '→ 后续'}</div>}
       {total > 0 && (
         <div className="space-y-2">
@@ -158,7 +179,31 @@ const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => { // 自
   if (prev.dependencyType !== next.dependencyType) return false;
   if (prev.isDragging !== next.isDragging) return false;
   if (prev.isArchiveView !== next.isArchiveView) return false;
+  if (prev.selectionMode !== next.selectionMode) return false;
+  if (prev.checked !== next.checked) return false;
+  const prevLabels = prev.task.labels || [], nextLabels = next.task.labels || []; // 标签按 id 列表比较
+  if (prevLabels.length !== nextLabels.length) return false;
+  for (let i = 0; i < prevLabels.length; i++) {
+    if (prevLabels[i].id !== nextLabels[i].id || prevLabels[i].name !== nextLabels[i].name || prevLabels[i].color !== nextLabels[i].color) return false;
+  }
+  if (prev.style !== next.style) return false; // 拖拽中 style 每帧变化，需放行
+  if (prev.teamMembers !== next.teamMembers) { // 成员列表内容比较，避免引用变化误伤
+    if (prev.teamMembers.length !== next.teamMembers.length) return false;
+    for (let i = 0; i < prev.teamMembers.length; i++) {
+      const pm = prev.teamMembers[i], nm = next.teamMembers[i];
+      if (pm.id !== nm.id || pm.name !== nm.name || pm.avatar !== nm.avatar || pm.color !== nm.color) return false;
+    }
+  }
+  // 回调与 dnd 注入 props（dragHandleProps/draggableProps/innerRef）按引用比较
+  if (prev.onMove !== next.onMove || prev.onEdit !== next.onEdit || prev.onDelete !== next.onDelete) return false;
+  if (prev.onArchive !== next.onArchive || prev.onRestore !== next.onRestore) return false;
+  if (prev.onToggleSubtask !== next.onToggleSubtask || prev.onAssignSubtask !== next.onAssignSubtask) return false;
+  if (prev.onCreateFromSubtask !== next.onCreateFromSubtask || prev.onSelect !== next.onSelect) return false;
+  if (prev.onCheckChange !== next.onCheckChange) return false;
+  if (prev.dragHandleProps !== next.dragHandleProps || prev.draggableProps !== next.draggableProps) return false;
+  if (prev.innerRef !== next.innerRef) return false;
   return true;
 };
 
-export default React.memo(TaskCard, areEqual);
+export const TaskCard = React.memo(TaskCardComponent, areEqual);
+export default TaskCard;

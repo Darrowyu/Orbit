@@ -3,11 +3,10 @@ import React, { memo } from 'react';
 interface ShortcutItem { keys: string; description: string; }
 
 const SHORTCUTS: ShortcutItem[] = [
-  { keys: 'Ctrl + N', description: '新建任务' },
-  { keys: 'Ctrl + K', description: '搜索任务' },
-  { keys: 'Ctrl + Shift + D', description: '打开仪表盘' },
-  { keys: '/', description: '显示快捷键帮助' },
-  { keys: 'Esc', description: '关闭弹窗' },
+  { keys: 'N', description: '新建任务' },
+  { keys: 'Ctrl + K', description: '搜索任务、项目' },
+  { keys: '?', description: '显示快捷键帮助' },
+  { keys: 'Esc', description: '关闭弹窗 / 面板' },
 ];
 
 interface Props { isOpen: boolean; onClose: () => void; }

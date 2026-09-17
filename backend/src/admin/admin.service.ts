@@ -1,11 +1,16 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { validatePassword } from '../common/validators';
 import * as bcrypt from 'bcryptjs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AdminService.name);
+
+  constructor(private prisma: PrismaService, private audit: AuditService) {}
 
   private aggregateByDate(data: { createdAt?: Date; updatedAt?: Date; _count: number | { userId: number } }[], dates: string[]): number[] {
     const map = new Map<string, number>();
@@ -21,7 +26,8 @@ export class AdminService {
   }
 
   async getUsers(query: { page?: number; limit?: number; search?: string; status?: string }) {
-    const { page = 1, limit = 20, search, status } = query;
+    const { page = 1, search, status } = query;
+    const limit = Math.min(query.limit || 20, 100); // 单页上限 100
     const where: { OR?: { name?: object; email?: object }[]; isActive?: boolean } = {};
     if (search) where.OR = [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }];
     if (status === 'active') where.isActive = true;
@@ -47,11 +53,12 @@ export class AdminService {
     return this.prisma.user.update({ where: { id }, data: { isActive: !user.isActive }, select: { id: true, isActive: true } });
   }
 
-  async resetPassword(id: string, newPassword: string) {
+  async resetPassword(id: string, newPassword: string, adminId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('用户不存在');
     validatePassword(newPassword);
     await this.prisma.user.update({ where: { id }, data: { password: await bcrypt.hash(newPassword, 10) } });
+    await this.audit.log({ action: 'UPDATE', entityType: 'USER', entityId: id, userId: adminId, newValue: { operation: 'resetPassword' } });
     return { success: true };
   }
 
@@ -59,7 +66,9 @@ export class AdminService {
     if (id === adminId) throw new ForbiddenException('不能修改自己的权限');
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('用户不存在');
-    return this.prisma.user.update({ where: { id }, data: { isSuperAdmin }, select: { id: true, isSuperAdmin: true } });
+    const updated = await this.prisma.user.update({ where: { id }, data: { isSuperAdmin }, select: { id: true, isSuperAdmin: true } });
+    await this.audit.log({ action: 'UPDATE', entityType: 'USER', entityId: id, userId: adminId, oldValue: { isSuperAdmin: user.isSuperAdmin }, newValue: { isSuperAdmin } });
+    return updated;
   }
 
   async deleteUser(id: string, adminId: string) {
@@ -70,10 +79,12 @@ export class AdminService {
     if (user.ownedTeams.length > 0) throw new ForbiddenException(`该用户是 ${user.ownedTeams.length} 个团队的所有者，请先转让所有权`);
     if (user.ownedProjects.length > 0) throw new ForbiddenException(`该用户是 ${user.ownedProjects.length} 个项目的所有者，请先转让所有权`);
     await this.prisma.user.delete({ where: { id } });
+    await this.audit.log({ action: 'DELETE', entityType: 'USER', entityId: id, userId: adminId, oldValue: { email: user.email, name: user.name } });
     return { success: true };
   }
 
   async getLoginLogs(userId?: string, page = 1, limit = 50) {
+    limit = Math.min(limit, 100); // 单页上限 100
     const where = userId ? { userId } : {};
     const [logs, total] = await Promise.all([
       this.prisma.loginLog.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, name: true, email: true } } } }),
@@ -93,6 +104,7 @@ export class AdminService {
   }
 
   async getTrends(days = 7) {
+    days = Math.min(Math.max(days, 1), 90); // 封顶 90 天，防止大范围全表扫描
     const dates: string[] = [];
     const now = new Date();
     for (let i = days - 1; i >= 0; i--) {
@@ -103,14 +115,14 @@ export class AdminService {
     const startDate = new Date(dates[0]);
     const [newUsers, completedTasks, activeLogins] = await Promise.all([
       this.prisma.user.findMany({ where: { createdAt: { gte: startDate } }, select: { createdAt: true } }),
-      this.prisma.task.findMany({ where: { status: 'DONE', updatedAt: { gte: startDate } }, select: { updatedAt: true } }),
+      this.prisma.task.findMany({ where: { completedAt: { gte: startDate } }, select: { completedAt: true } }), // 用完成时间而非 updatedAt，避免编辑已完成任务后重复计入
       this.prisma.loginLog.findMany({ where: { createdAt: { gte: startDate }, success: true }, select: { createdAt: true, userId: true } }),
     ]);
     const newUsersAgg = this.aggregateByDate(newUsers.map(u => ({ createdAt: u.createdAt, _count: 1 })), dates);
-    const completedAgg = this.aggregateByDate(completedTasks.map(t => ({ updatedAt: t.updatedAt, _count: 1 })), dates);
+    const completedAgg = this.aggregateByDate(completedTasks.filter(t => t.completedAt).map(t => ({ updatedAt: t.completedAt as Date, _count: 1 })), dates);
     const uniqueLogins = new Map<string, Set<string>>();
     dates.forEach(d => uniqueLogins.set(d, new Set()));
-    activeLogins.forEach(l => { const d = l.createdAt.toISOString().split('T')[0]; uniqueLogins.get(d)?.add(l.userId); });
+    activeLogins.forEach(l => { if (!l.userId) return; const d = l.createdAt.toISOString().split('T')[0]; uniqueLogins.get(d)?.add(l.userId as string); });
     const activeUsersAgg = dates.map(d => uniqueLogins.get(d)?.size || 0);
     return { dates, newUsers: newUsersAgg, completedTasks: completedAgg, activeUsers: activeUsersAgg };
   }
@@ -127,12 +139,16 @@ export class AdminService {
     return { overdueTasks, inactiveUsers, unassignedTasks, storageSize: storageStats._sum.size || 0, fileCount: storageStats._count };
   }
 
+  // 排序字段白名单，非法值回退 createdAt
+  private static readonly TEAM_SORT_FIELDS = new Set(['name', 'code', 'createdAt']);
+
   async getTeams(query: { page?: number; limit?: number; search?: string; sort?: string }) {
     const { page = 1, limit = 20, search, sort = 'createdAt' } = query;
+    const orderBy = AdminService.TEAM_SORT_FIELDS.has(sort) ? sort : 'createdAt';
     const where: { OR?: { name?: object; code?: object }[] } = {};
     if (search) where.OR = [{ name: { contains: search, mode: 'insensitive' } }, { code: { contains: search, mode: 'insensitive' } }];
     const [teams, total] = await Promise.all([
-      this.prisma.team.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { [sort]: 'desc' }, include: { owner: { select: { id: true, name: true, avatar: true, color: true } }, _count: { select: { members: true, projects: true, tasks: true } } } }),
+      this.prisma.team.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { [orderBy]: 'desc' }, include: { owner: { select: { id: true, name: true, avatar: true, color: true } }, _count: { select: { members: true, projects: true, tasks: true } } } }),
       this.prisma.team.count({ where }),
     ]);
     return { teams, total, page, limit };
@@ -151,10 +167,17 @@ export class AdminService {
     return this.prisma.team.update({ where: { id: teamId }, data: { ownerId: newOwnerId } });
   }
 
-  async dissolveTeam(teamId: string) {
+  async dissolveTeam(teamId: string, adminId: string) {
     const team = await this.prisma.team.findUnique({ where: { id: teamId } });
     if (!team) throw new NotFoundException('团队不存在');
+    const attachments = await this.prisma.attachment.findMany({ where: { task: { teamId } }, select: { filename: true } });
     await this.prisma.team.delete({ where: { id: teamId } });
+    await this.audit.log({ action: 'DELETE', entityType: 'TEAM', entityId: teamId, userId: adminId, teamId, oldValue: { name: team.name } });
+    // 团队删除后异步清理附件文件，失败仅告警不影响主流程
+    for (const att of attachments) {
+      fs.promises.unlink(path.join(process.cwd(), 'uploads/attachments', att.filename))
+        .catch((e) => this.logger.warn(`附件文件清理失败 ${att.filename}: ${e?.message || e}`));
+    }
     return { success: true };
   }
 

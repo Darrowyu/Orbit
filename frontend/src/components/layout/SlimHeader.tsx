@@ -2,23 +2,25 @@ import { memo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Project } from '../../types';
 import { NotificationBell } from '../NotificationBell';
+import { GlobalSearch } from '../GlobalSearch';
 import { Avatar, IconButton } from '../ui';
 
 interface SlimHeaderProps {
   user: User;
   currentProject: Project | null;
   projects: Project[];
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
   onSelectProject: (project: Project | null) => void;
+  onSelectSearchTask: (taskId: string) => void;
+  onSelectSearchProject: (projectId: string) => void;
   onLogout: () => void;
 }
 
 export const SlimHeader = memo(function SlimHeader({
-  user, currentProject, projects, searchQuery, setSearchQuery, onSelectProject, onLogout
+  user, currentProject, projects, onSelectProject, onSelectSearchTask, onSelectSearchProject, onLogout
 }: SlimHeaderProps) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,26 +90,15 @@ export const SlimHeader = memo(function SlimHeader({
           </div>
         </div>
 
-        {/* 搜索框 - 中屏以上显示 */}
-        <div className="hidden md:block flex-1 max-w-md mx-4 lg:mx-8">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="搜索任务..."
-              className="w-full h-9 pl-9 pr-4 bg-slate-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#001C3D]/20 focus:bg-white transition-all"
-            />
-          </div>
+        {/* 全局搜索 - 中屏以上显示（Ctrl+K 聚焦，本地看板过滤在 FilterBar） */}
+        <div id="global-search" className="hidden md:block flex-1 max-w-md mx-4 lg:mx-8">
+          <GlobalSearch onSelectTask={onSelectSearchTask} onSelectProject={onSelectSearchProject} />
         </div>
 
         {/* 右侧操作 */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* 小屏搜索按钮 */}
-          <IconButton onClick={() => {}} title="搜索" className="md:hidden text-slate-400 hover:text-[#001C3D] hover:bg-slate-100">
+          {/* 小屏搜索按钮 - 展开全局搜索面板 */}
+          <IconButton onClick={() => setShowMobileSearch((v) => !v)} title="搜索" className={`md:hidden hover:bg-slate-100 ${showMobileSearch ? 'text-[#001C3D] bg-slate-100' : 'text-slate-400 hover:text-[#001C3D]'}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </IconButton>
           <IconButton onClick={() => navigate('/dashboard')} title="仪表盘" className="hidden sm:flex text-slate-400 hover:text-[#001C3D] hover:bg-slate-100">
@@ -125,6 +116,16 @@ export const SlimHeader = memo(function SlimHeader({
           </IconButton>
         </div>
       </div>
+
+      {/* 小屏全局搜索面板 */}
+      {showMobileSearch && (
+        <div className="md:hidden px-4 pb-3 pt-2 border-t border-slate-100">
+          <GlobalSearch
+            onSelectTask={(taskId) => { setShowMobileSearch(false); onSelectSearchTask(taskId); }}
+            onSelectProject={(projectId) => { setShowMobileSearch(false); onSelectSearchProject(projectId); }}
+          />
+        </div>
+      )}
     </header>
   );
 });

@@ -1,4 +1,7 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
+
+// 模块级栈：嵌套弹窗时只有最顶层的 Modal 响应 Escape（抽屉等浮层也注册进来统一分发）
+export const openModalStack: symbol[] = [];
 
 interface ModalProps {
   isOpen: boolean;
@@ -31,18 +34,24 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   closeOnEscape = true,
 }) => {
+  const idRef = useRef<symbol | null>(null);
+  if (idRef.current === null) idRef.current = Symbol('modal');
+
   const handleEscape = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape' && closeOnEscape) onClose();
+    if (e.key === 'Escape' && closeOnEscape && openModalStack[openModalStack.length - 1] === idRef.current) onClose();
   }, [closeOnEscape, onClose]);
 
   useEffect(() => {
     if (isOpen) {
+      openModalStack.push(idRef.current as symbol);
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
     return () => {
+      const idx = openModalStack.indexOf(idRef.current as symbol);
+      if (idx !== -1) openModalStack.splice(idx, 1);
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
+      if (openModalStack.length === 0) document.body.style.overflow = ''; // 内层弹窗关闭时，仅当栈已空才恢复滚动
     };
   }, [isOpen, handleEscape]);
 

@@ -19,7 +19,7 @@ export const SimpleBurndownChart = memo(function SimpleBurndownChart({ data, loa
 
     // 计算SVG路径点
     const calculatePoints = () => {
-        if (data.length === 0) return { actualPoints: '', idealPoints: '' };
+        if (data.length === 0) return { actualPoints: '', idealPoints: '', maxRemaining: 1 };
 
         const maxRemaining = Math.max(...data.map(d => d.remaining), 1);
         const width = 100; // 百分比宽度
@@ -39,7 +39,7 @@ export const SimpleBurndownChart = memo(function SimpleBurndownChart({ data, loa
         return { actualPoints, idealPoints, maxRemaining };
     };
 
-    const { actualPoints, idealPoints } = calculatePoints();
+    const { actualPoints, idealPoints, maxRemaining } = calculatePoints();
 
     return (
         <Card className="h-full flex flex-col" padding="md">

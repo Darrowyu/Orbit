@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Card, Badge } from './ui';
+import { Card } from './ui';
 import type { ProjectStats } from '../types';
 
 interface ProjectStatsPanelProps {

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { Task, TaskStatus } from '../types';
+import { Task, TaskStatus, Subtask } from '../types';
 import { taskApi } from '../services/api';
-import { emitTaskUpdate, emitTaskDelete } from '../services/socket';
+import { useAuthStore } from './authStore';
 import { getErrorMessage } from '../utils/error';
 
 interface Pagination {
@@ -28,8 +28,10 @@ interface TaskStore {
   validateDependencies: (task: Task, status: TaskStatus) => string | null;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   assignSubtask: (taskId: string, subtaskId: string, assigneeId: string) => Promise<void>;
+  deriveStatusFromSubtasks: (task: Task, subtasks: Subtask[]) => TaskStatus | null;
   archiveTask: (id: string) => Promise<void>;
   restoreTask: (id: string) => Promise<void>;
+  performArchiveOperation: (id: string, task: Task, isArchiving: boolean) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
@@ -39,9 +41,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   pagination: null,
 
   fetchTasks: async (page = 1, limit = 100) => {
+    const teamId = useAuthStore.getState().user?.currentTeamId; // 记录请求发起时的团队
     set({ isLoading: true });
     try {
       const { data } = await taskApi.getAll({ page, limit });
+      if (teamId !== useAuthStore.getState().user?.currentTeamId) return; // 期间已切团队，丢弃乱序响应
       set({ tasks: data.data, pagination: data.pagination, isLoading: false });
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
@@ -58,11 +62,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   },
 
-  addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),
+  addTask: (task) => set((s) => s.tasks.some((t) => t.id === task.id) ? s : { tasks: [...s.tasks, task] }), // 幂等：服务端回声不重复添加
 
   createTask: async (data) => {
     const { data: task } = await taskApi.create(data);
-    set((s) => ({ tasks: [...s.tasks, task] }));
+    get().addTask(task); // 服务端广播可能先于响应到达，addTask 幂等去重
     return task;
   },
 
@@ -76,21 +80,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data: updated } = await taskApi.update(id, data);
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
-      emitTaskUpdate(updated);
     } catch (error) {
       set({ tasks: previousTasks });
       throw error;
     }
   },
 
-  updateTaskLocal: (task) => set((s) => ({ tasks: s.tasks.map((t) => (t.id === task.id ? task : t)) })),
+  updateTaskLocal: (task) => set((s) => s.tasks.some((t) => t.id === task.id) ? { tasks: s.tasks.map((t) => (t.id === task.id ? task : t)) } : s), // 幂等：任务不在列表中（如已归档/删除）则忽略回声
 
   deleteTask: async (id) => {
     const previousTasks = get().tasks;
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
     try {
       await taskApi.delete(id);
-      emitTaskDelete(id);
     } catch (error) {
       set({ tasks: previousTasks });
       throw error;
@@ -111,7 +113,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const { data: updated } = await taskApi.update(id, { status });
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }));
-      emitTaskUpdate(updated);
       return { success: true, error: '' };
     } catch (error) {
       set({ tasks: previousTasks });

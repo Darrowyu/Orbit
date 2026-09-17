@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { Team, TeamMember } from '../types';
 import { teamApi, userApi } from '../services/api';
 import { switchTeam as switchSocketTeam } from '../services/socket';
+import { useAuthStore } from './authStore';
+import { useProjectStore } from './projectStore';
+import { useTaskStore } from './taskStore';
 
 
 interface TeamStore {
@@ -32,7 +35,10 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     try {
       const { data } = await teamApi.getMyTeams();
       set({ teams: data, isLoading: false });
-      if (data.length && !get().currentTeam) set({ currentTeam: data[0] });
+      if (data.length && !get().currentTeam) { // 以 authStore.currentTeamId 为准，避免 teams[0] 兜底漂移
+        const tid = useAuthStore.getState().user?.currentTeamId;
+        set({ currentTeam: data.find((t) => t.id === tid) || data[0] });
+      }
     } catch { set({ isLoading: false }); }
   },
 
@@ -46,26 +52,35 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   createTeam: async (name) => {
     const { data } = await teamApi.create(name);
     set((s) => ({ teams: [...s.teams, data], currentTeam: data }));
+    useAuthStore.getState().updateUser({ currentTeamId: data.id }); // 同步唯一事实源，触发数据刷新
+    switchSocketTeam(data.id);
     return data;
   },
 
   joinByCode: async (code) => {
     const { data } = await teamApi.joinByCode(code);
     set((s) => ({ teams: [...s.teams, data], currentTeam: data }));
+    useAuthStore.getState().updateUser({ currentTeamId: data.id });
+    switchSocketTeam(data.id);
     return data;
   },
 
   joinByLink: async (inviteLink) => {
     const { data } = await teamApi.joinByLink(inviteLink);
     set((s) => ({ teams: [...s.teams, data], currentTeam: data }));
+    useAuthStore.getState().updateUser({ currentTeamId: data.id });
+    switchSocketTeam(data.id);
     return data;
   },
 
   switchTeam: async (teamId) => {
     const { data } = await teamApi.switchTeam(teamId);
-    set({ currentTeam: data });
+    // 清空旧团队数据，防旧数据闪现/新数据错过滤（App 监听 currentTeamId 变化后全量刷新）
+    useProjectStore.getState().setCurrentProject(null);
+    useTaskStore.setState({ tasks: [], archivedTasks: [] });
+    set({ currentTeam: data, members: [] });
+    useAuthStore.getState().updateUser({ currentTeamId: teamId }); // 同步唯一事实源，触发 App 全量刷新
     switchSocketTeam(teamId); // 同步切换WebSocket团队房间
-    await get().fetchMembers();
   },
 
   setCurrentTeam: (team) => set({ currentTeam: team }),

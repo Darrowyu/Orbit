@@ -50,6 +50,7 @@ export class TimeEntriesService {
       where,
       include: { task: { select: { id: true, title: true, projectId: true } } },
       orderBy: { startTime: 'desc' },
+      take: 100,
     });
   }
 

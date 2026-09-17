@@ -1,14 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
+  // 日期区间校验：非法日期 400，跨度封顶 366 天
+  private validateDateRange(startDate: Date, endDate: Date): void {
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) throw new BadRequestException('start/end 日期格式非法');
+    if (startDate > endDate) throw new BadRequestException('开始日期不能晚于结束日期');
+    const spanDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (spanDays > 366) throw new BadRequestException('查询跨度不能超过 366 天');
+  }
+
   async getBurndownData(projectId: string, teamId: string, startDate: Date, endDate: Date) {
+    this.validateDateRange(startDate, endDate);
     const tasks = await this.prisma.task.findMany({
       where: { projectId, teamId, isArchived: false, createdAt: { lte: endDate } },
-      select: { id: true, status: true, createdAt: true, updatedAt: true },
+      select: { id: true, status: true, createdAt: true, updatedAt: true, completedAt: true },
     });
 
     const days: { date: string; remaining: number; completed: number }[] = [];
@@ -16,18 +25,19 @@ export class ReportsService {
     while (d <= endDate) {
       const dateStr = d.toISOString().split('T')[0];
       const dayEnd = new Date(d);
-      dayEnd.setHours(23, 59, 59, 999);
+      dayEnd.setUTCHours(23, 59, 59, 999); // 与 UTC dateStr 口径一致，避免服务器时区导致日界漂移
       
       const created = tasks.filter(t => new Date(t.createdAt) <= dayEnd).length;
-      const done = tasks.filter(t => t.status === 'DONE' && new Date(t.updatedAt) <= dayEnd).length;
+      const done = tasks.filter(t => t.status === 'DONE' && new Date(t.completedAt ?? t.updatedAt) <= dayEnd).length; // 完成时间优先 completedAt
       
       days.push({ date: dateStr, remaining: created - done, completed: done });
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
     }
     return days;
   }
 
   async getCumulativeFlowData(projectId: string, teamId: string, startDate: Date, endDate: Date) {
+    this.validateDateRange(startDate, endDate);
     const tasks = await this.prisma.task.findMany({
       where: { projectId, teamId, isArchived: false },
       select: { id: true, status: true, createdAt: true, updatedAt: true },
@@ -38,14 +48,14 @@ export class ReportsService {
     while (d <= endDate) {
       const dateStr = d.toISOString().split('T')[0];
       const dayEnd = new Date(d);
-      dayEnd.setHours(23, 59, 59, 999);
+      dayEnd.setUTCHours(23, 59, 59, 999); // 与 UTC dateStr 口径一致
 
       const activeTasks = tasks.filter(t => new Date(t.createdAt) <= dayEnd);
       const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
       activeTasks.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
       
       days.push({ date: dateStr, ...counts });
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
     }
     return days;
   }
@@ -84,14 +94,14 @@ export class ReportsService {
   async getProjectStats(projectId: string, teamId: string) {
     const tasks = await this.prisma.task.findMany({
       where: { projectId, teamId, isArchived: false },
-      select: { status: true, priority: true, dueDate: true, createdAt: true, updatedAt: true },
+      select: { status: true, priority: true, dueDate: true, createdAt: true, updatedAt: true, completedAt: true },
     });
 
     const now = new Date();
     const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE').length;
     const completedThisWeek = tasks.filter(t => {
       if (t.status !== 'DONE') return false;
-      const updated = new Date(t.updatedAt);
+      const updated = new Date(t.completedAt ?? t.updatedAt);
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       return updated >= weekAgo;
     }).length;
@@ -101,7 +111,7 @@ export class ReportsService {
     
     const completedTasks = tasks.filter(t => t.status === 'DONE');
     const avgCycleTime = completedTasks.length > 0 
-      ? completedTasks.reduce((sum, t) => sum + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()), 0) / completedTasks.length / (1000 * 60 * 60 * 24)
+      ? completedTasks.reduce((sum, t) => sum + (new Date(t.completedAt ?? t.updatedAt).getTime() - new Date(t.createdAt).getTime()), 0) / completedTasks.length / (1000 * 60 * 60 * 24)
       : 0;
 
     return {
@@ -144,8 +154,9 @@ export class ReportsService {
 
     entries.forEach(e => {
       const mins = e.duration || 0;
-      if (!byUser[e.userId]) byUser[e.userId] = { name: e.user.name, totalMinutes: 0 };
-      byUser[e.userId].totalMinutes += mins;
+      const uid = e.userId ?? 'deleted-user'; // 用户删除后工时保留，归入占位桶
+      if (!byUser[uid]) byUser[uid] = { name: e.user?.name ?? '已注销用户', totalMinutes: 0 };
+      byUser[uid].totalMinutes += mins;
       
       if (!byTask[e.taskId]) byTask[e.taskId] = { title: e.task.title, totalMinutes: 0 };
       byTask[e.taskId].totalMinutes += mins;

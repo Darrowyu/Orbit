@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, ForbiddenException, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Query, UseGuards, Request, ForbiddenException, Logger } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateAiConfigDto } from './dto/ai-config.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -39,5 +40,15 @@ export class UsersController {
   @Get('my-teams')
   getMyTeams(@Request() req) {
     return this.users.getUserTeams(req.user.id);
+  }
+
+  @Get('me/ai-config')
+  getAiConfig(@Request() req) {
+    return this.users.getAiConfig(req.user.id);
+  }
+
+  @Put('me/ai-config')
+  updateAiConfig(@Request() req, @Body() dto: UpdateAiConfigDto) {
+    return this.users.updateAiConfig(req.user.id, dto);
   }
 }

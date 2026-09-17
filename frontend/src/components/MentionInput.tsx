@@ -84,8 +84,11 @@ export const MentionInput: React.FC<MentionInputProps> = ({ value, onChange, mem
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const escapeHtml = (s: string) => // 先转义用户输入，防止 innerHTML 注入
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   const renderValue = () => {
-    return value.replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="text-[#001C3D] font-medium">@$1</span>');
+    return escapeHtml(value).replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="text-[#001C3D] font-medium">@$1</span>');
   };
 
   return (

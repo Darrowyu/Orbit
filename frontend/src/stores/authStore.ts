@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { data } = await authApi.login(email, password);
           set({ user: data.user, token: data.token, isLoading: false });
-          connectSocket();
+          connectSocket(data.user.currentTeamId || undefined); // 携带团队ID，登录即入房间
           if (shouldAskPermission()) requestNotificationPermission();
         } catch (e) {
           set({ isLoading: false });
@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { data } = await authApi.register({ email, password, name });
           set({ user: data.user, token: data.token, isLoading: false });
-          connectSocket();
+          connectSocket(data.user.currentTeamId || undefined);
         } catch (e) {
           set({ isLoading: false });
           throw e;

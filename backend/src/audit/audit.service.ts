@@ -55,6 +55,7 @@ export class AuditService {
       where: { entityType, entityId, ...(teamId && { teamId }) },
       include: { user: { select: { id: true, name: true, avatar: true, color: true } } },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 }

@@ -10,7 +10,6 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DialogProvider } from './components/ConfirmDialog';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { GlobalLoading } from './components/GlobalLoading';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
@@ -22,7 +21,6 @@ ReactDOM.createRoot(rootElement).render(
     <ErrorBoundary>
       <DialogProvider>
         <BrowserRouter>
-          <GlobalLoading />
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

@@ -42,8 +42,11 @@ export class TeamsService {
   private async addMember(teamId: string, userId: string) {
     const exists = await this.prisma.teamMember.findUnique({ where: { userId_teamId: { userId, teamId } } });
     if (exists) throw new ConflictException('您已是该团队成员');
-    await this.prisma.teamMember.create({ data: { userId, teamId, role: 'member' } });
-    await this.prisma.user.update({ where: { id: userId }, data: { currentTeamId: teamId } });
+    // 建成员与切换当前团队需原子完成；并发重复加入由唯一约束兜底（P2002 → 409）
+    await this.prisma.$transaction(async (tx) => {
+      await tx.teamMember.create({ data: { userId, teamId, role: 'member' } });
+      await tx.user.update({ where: { id: userId }, data: { currentTeamId: teamId } });
+    });
     const team = await this.prisma.team.findUnique({ where: { id: teamId } });
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     await this.notifications.notifyTeamJoined(team?.name || '', userId);
@@ -54,10 +57,10 @@ export class TeamsService {
   async findOne(id: string, userId?: string) {
     const team = await this.prisma.team.findUnique({ where: { id }, include: { members: { include: { user: true } }, owner: true } });
     if (!team) throw new NotFoundException('团队不存在');
-    if (userId) { // 非团队成员脱敏邀请码和邀请链接
+    if (userId) { // 非团队成员脱敏邀请码、邀请链接和成员邮箱
       const isMember = team.members.some(m => m.userId === userId);
       if (!isMember) {
-        const formatted = this.formatTeam(team);
+        const formatted = this.formatTeam(team, false);
         return { ...formatted, code: '******', inviteLink: '******' };
       }
     }
@@ -112,13 +115,15 @@ export class TeamsService {
     if (!member || !roles.includes(member.role)) throw new ForbiddenException('权限不足');
   }
 
-  private formatTeam(team: TeamEntity) {
+  private formatTeam(team: TeamEntity, includeEmail = true) { // includeEmail=false 时剥离成员邮箱（非成员可见字段最小化）
     return {
       id: team.id, name: team.name, code: team.code, inviteLink: team.inviteLink,
       ownerId: team.ownerId, createdAt: team.createdAt?.toISOString(),
       members: team.members?.map((m: TeamMemberEntity) => ({
         id: m.id, role: m.role, joinedAt: m.joinedAt?.toISOString(),
-        user: { id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color },
+        user: includeEmail
+          ? { id: m.user.id, name: m.user.name, email: m.user.email, avatar: m.user.avatar, color: m.user.color }
+          : { id: m.user.id, name: m.user.name, avatar: m.user.avatar, color: m.user.color },
       })),
     };
   }

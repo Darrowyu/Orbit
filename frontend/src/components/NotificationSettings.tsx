@@ -47,7 +47,10 @@ export const NotificationSettings: React.FC = () => {
     { key: 'taskDueSoon', label: '任务即将到期', desc: '任务截止日期前24小时提醒' },
     { key: 'taskOverdue', label: '任务逾期', desc: '任务超过截止日期时提醒' },
     { key: 'newComment', label: '新评论', desc: '当有人评论你负责的任务时通知' },
-    { key: 'projectMemberAdded', label: '项目成员变动', desc: '加入/移出项目或角色变更时通知' },
+    { key: 'projectMemberAdded', label: '加入项目', desc: '被加入项目时通知' },
+    { key: 'projectMemberRemoved', label: '移出项目', desc: '被移出项目时通知' },
+    { key: 'projectRoleChanged', label: '项目角色变更', desc: '项目内角色变化时通知' },
+    { key: 'mention', label: '@提及', desc: '有人在评论中@你时通知' },
     { key: 'teamJoined', label: '团队动态', desc: '加入团队或角色变更时通知' },
     { key: 'browserPush', label: '浏览器推送', desc: '在桌面显示通知弹窗' },
   ];

@@ -32,7 +32,9 @@ export class AttachmentsService {
     });
   }
 
-  async findByTask(taskId: string) {
+  async findByTask(taskId: string, teamId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, teamId } });
+    if (!task) throw new NotFoundException('任务不存在');
     return this.prisma.attachment.findMany({ where: { taskId }, orderBy: { createdAt: 'desc' } });
   }
 

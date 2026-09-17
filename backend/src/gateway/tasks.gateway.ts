@@ -2,7 +2,6 @@ import { WebSocketGateway, WebSocketServer, SubscribeMessage, OnGatewayConnectio
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { Task } from '../tasks/dto/task.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:1234'], credentials: true } })
@@ -23,6 +22,8 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const token = client.handshake.auth?.token;
       if (!token) { client.disconnect(); return; }
       const payload = this.jwt.verify(token);
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true, isActive: true } });
+      if (!user || !user.isActive) { client.disconnect(); return; } // 用户不存在或已禁用
       client.data.userId = payload.sub;
       const teamId = client.handshake.query.teamId as string;
       if (teamId) {
@@ -55,25 +56,25 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.userTeams.set(client.id, teamId);
   }
 
-  @SubscribeMessage('task:create')
-  handleCreate(client: Socket, payload: Task): void {
-    const teamId = this.userTeams.get(client.id);
-    if (teamId) client.to(`team:${teamId}`).emit('task:created', payload);
-    else client.broadcast.emit('task:created', payload);
+  // 服务端权威广播：写库成功后由 service 层调用，客户端不再有任务事件上行通道
+  emitTaskCreated(teamId: string, task: unknown): void {
+    this.server?.to(`team:${teamId}`).emit('task:created', task);
   }
 
-  @SubscribeMessage('task:update')
-  handleUpdate(client: Socket, payload: Task): void {
-    const teamId = this.userTeams.get(client.id);
-    if (teamId) client.to(`team:${teamId}`).emit('task:updated', payload);
-    else client.broadcast.emit('task:updated', payload);
+  emitTaskUpdated(teamId: string, task: unknown): void {
+    this.server?.to(`team:${teamId}`).emit('task:updated', task);
   }
 
-  @SubscribeMessage('task:delete')
-  handleDelete(client: Socket, payload: string): void {
-    const teamId = this.userTeams.get(client.id);
-    if (teamId) client.to(`team:${teamId}`).emit('task:deleted', payload);
-    else client.broadcast.emit('task:deleted', payload);
+  emitTaskDeleted(teamId: string, taskId: string): void {
+    this.server?.to(`team:${teamId}`).emit('task:deleted', taskId);
+  }
+
+  emitCommentCreated(teamId: string, comment: unknown): void {
+    this.server?.to(`team:${teamId}`).emit('comment:created', comment);
+  }
+
+  emitCommentDeleted(teamId: string, commentId: string): void {
+    this.server?.to(`team:${teamId}`).emit('comment:deleted', commentId);
   }
 }
 

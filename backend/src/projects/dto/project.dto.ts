@@ -76,7 +76,7 @@ export class UpdateProjectDto {
     @IsString() @IsOptional() name?: string;
     @IsString() @IsOptional() description?: string;
     @IsString() @IsOptional() color?: string;
-    @IsString() @IsOptional() status?: string; // ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
+    @IsString() @IsOptional() status?: string; // ACTIVE, ON_HOLD, COMPLETED
     @IsDateString() @IsOptional() startDate?: string;
     @IsDateString() @IsOptional() endDate?: string;
 }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Priority, Subtask, User, Project, TeamRole, TaskCreateData } from '../types';
+import { Task, TaskStatus, Priority, Subtask, User, Project, TeamRole, TaskCreateData, TaskTemplate } from '../types';
 import { aiApi } from '../services/api';
 import { Button, Input, Modal, Badge, Select } from './ui';
 import { AIAssistPanel } from './AIAssistPanel';
 import { useAuthStore } from '../stores/authStore';
 import { LabelSelector } from './LabelSelector';
+import { TaskTemplateList } from './TaskTemplateList';
 import { useLabelStore } from '../stores/labelStore';
 
 interface Props {
@@ -35,6 +36,17 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [projectId, setProjectId] = useState<string>('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  // 选择模板后快速填充表单
+  const handleSelectTemplate = (t: TaskTemplate) => {
+    setTitle(t.title);
+    setDescription(t.description || '');
+    setPriority((t.priority as Priority) || Priority.MEDIUM);
+    setSubtasks(t.subtasks.map((s) => ({ id: Math.random().toString(36).slice(2, 11), title: s, assigneeId })));
+    setSelectedLabelIds(t.labelIds || []);
+    setShowTemplates(false);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -96,6 +108,22 @@ export const CreateTaskModal: React.FC<Props> = ({ isOpen, onClose, onSubmit, te
     <Modal isOpen={isOpen} onClose={onClose} title={initialData ? '编辑任务' : '创建新任务'} size="lg">
       <form onSubmit={handleSubmit} className="flex flex-col -m-6">
         <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+          {!initialData && (
+            <div className="border border-slate-100 rounded-xl overflow-hidden">
+              <button type="button" onClick={() => setShowTemplates((v) => !v)} className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                  从模板快速创建
+                </span>
+                <svg className={`w-4 h-4 text-slate-400 transition-transform ${showTemplates ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {showTemplates && (
+                <div className="px-3 pb-3 max-h-64 overflow-y-auto border-t border-slate-100 pt-3">
+                  <TaskTemplateList onSelect={handleSelectTemplate} />
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">任务标题</label>
             <div className="flex gap-2">

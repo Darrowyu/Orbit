@@ -24,7 +24,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       completeTour: () => set({ isRunning: false, stepIndex: 0, hasCompletedOnce: true }),
       resetTour: () => set({ hasCompletedOnce: false }),
     }),
-    { name: 'orbit-onboarding' }
+    { name: 'orbit-onboarding', partialize: (state) => ({ hasCompletedOnce: state.hasCompletedOnce }) } // 只持久化完成标记，运行态不落地
   )
 );
 

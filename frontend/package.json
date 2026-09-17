@@ -8,13 +8,12 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@hello-pangea/dnd": "16.5.0",
     "axios": "^1.6.0",
-    "orbit": "file:..",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-joyride": "^2.9.3",

@@ -5,6 +5,7 @@ import { FilterBar } from './components/FilterBar';
 import { KanbanBoard } from './components/KanbanBoard';
 import { ArchivedTasksModal } from './components/ArchivedTasksModal';
 import { CreateTaskModal } from './components/CreateTaskModal';
+import { TaskDetailDrawer } from './components/TaskDetailDrawer';
 import { LoginModal } from './components/LoginModal';
 import { TeamSetup } from './components/TeamSetup';
 import { TeamSettings } from './components/TeamSettings';
@@ -16,11 +17,15 @@ import { useAuthStore } from './stores/authStore';
 import { useTaskStore } from './stores/taskStore';
 import { useTeamStore } from './stores/teamStore';
 import { useProjectStore } from './stores/projectStore';
+import { taskApi } from './services/api';
+import { openModalStack } from './components/ui/Modal';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProjectMemberModal } from './components/ProjectMemberModal';
 import { CalendarView } from './components/CalendarView';
 import { GanttChart } from './components/GanttChart';
+import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 type SortOption = 'DEFAULT' | 'PRIORITY_DESC' | 'DATE_DESC';
 type ViewMode = 'kanban' | 'calendar' | 'gantt';
@@ -37,6 +42,8 @@ const App: React.FC = () => {
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null); // 详情抽屉打开的任务
+  const [fallbackTask, setFallbackTask] = useState<Task | null>(null); // 搜索选中但不在 store 中的任务（归档/超分页），单拉后兜底展示
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('DEFAULT');
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
@@ -46,6 +53,8 @@ const App: React.FC = () => {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [showProjectDashboard, setShowProjectDashboard] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [selectionMode, setSelectionMode] = useState(false); // 看板批量多选模式
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
@@ -118,9 +127,48 @@ const App: React.FC = () => {
     }
   }, [editingTask, updateTask, createTask, alert]);
 
-  const handleEdit = useCallback((task: Task) => { setEditingTask(task); setIsModalOpen(true); }, []);
+  // 点击卡片打开详情抽屉；抽屉里的"编辑"按钮才打开编辑弹窗
+  const handleEdit = useCallback((task: Task) => { setDetailTaskId(task.id); }, []);
+
+  const handleEditFromDrawer = useCallback((task: Task) => { setEditingTask(task); setIsModalOpen(true); }, []);
+
+  // 抽屉任务从 store 实时派生（socket 更新自动反映；任务被删除时抽屉自动关闭），找不到时用单拉的兜底任务
+  const detailTask = useMemo(
+    () => (detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? (fallbackTask?.id === detailTaskId ? fallbackTask : null) : null),
+    [tasks, detailTaskId, fallbackTask]
+  );
 
   const handleNewTask = useCallback(() => { setEditingTask(null); setIsModalOpen(true); }, []);
+
+  // 全局搜索选中结果：任务打开详情抽屉，项目切换当前项目；任务不在 store 时按 id 单拉（归档/超分页）
+  const handleSearchSelectTask = useCallback(async (taskId: string) => {
+    if (useTaskStore.getState().tasks.some((t) => t.id === taskId)) { setDetailTaskId(taskId); return; }
+    try {
+      const { data } = await taskApi.getOne(taskId);
+      setFallbackTask(data);
+      setDetailTaskId(taskId);
+    } catch { /* 拉取失败静默 */ }
+  }, []);
+
+  const handleSearchSelectProject = useCallback((projectId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    if (project) {
+      setCurrentProject(project);
+      setShowProjectDashboard(false);
+    }
+  }, [projects, setCurrentProject]);
+
+  // 全局快捷键：Ctrl+K 聚焦搜索、? 帮助面板、N 新建任务、Esc 关闭帮助面板
+  // 'n' 与 Ctrl+K 在任何弹窗/抽屉打开时（openModalStack 非空）不触发
+  useKeyboardShortcuts([
+    { key: 'k', ctrl: true, action: () => { if (openModalStack.length === 0) document.querySelector<HTMLInputElement>('#global-search input')?.focus(); }, description: '搜索 (Ctrl+K)' },
+    { key: '?', shift: true, action: () => setShowShortcutsHelp((v) => !v), description: '快捷键帮助 (?)' },
+    { key: 'n', action: () => { if (openModalStack.length === 0) handleNewTask(); }, description: '新建任务 (N)' },
+    { key: 'Escape', action: () => setShowShortcutsHelp(false), description: '关闭面板 (Esc)' },
+  ], !!user?.currentTeamId);
+
+  // 切出看板视图时自动退出多选模式
+  useEffect(() => { if (viewMode !== 'kanban') setSelectionMode(false); }, [viewMode]);
 
   const handleCreateProject = useCallback(() => { setEditingProject(null); setIsProjectModalOpen(true); }, []);
 
@@ -163,9 +211,9 @@ const App: React.FC = () => {
         user={user}
         currentProject={currentProject}
         projects={projects}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
         onSelectProject={handleSelectProject}
+        onSelectSearchTask={handleSearchSelectTask}
+        onSelectSearchProject={handleSearchSelectProject}
         onLogout={logout}
       />
 
@@ -238,6 +286,10 @@ const App: React.FC = () => {
                     setFilterAssignee={setFilterAssignee}
                     sortOption={sortOption}
                     setSortOption={(s) => setSortOption(s as SortOption)}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    selectionMode={selectionMode}
+                    onToggleSelectionMode={() => setSelectionMode((v) => !v)}
                     onNewTask={handleNewTask}
                   />
                   <KanbanBoard
@@ -254,6 +306,7 @@ const App: React.FC = () => {
                     onAssignSubtask={handleAssign}
                     onCreateFromSubtask={handleCreateFromSubtask}
                     onShowArchived={handleShowArchived}
+                    selectionMode={selectionMode}
                   />
                 </>
               )}
@@ -273,6 +326,13 @@ const App: React.FC = () => {
           )}
         </MainContent>
       </div>
+
+      <TaskDetailDrawer
+        task={detailTask}
+        onClose={() => { setDetailTaskId(null); setFallbackTask(null); }}
+        onEdit={handleEditFromDrawer}
+        teamMembers={members as User[]}
+      />
 
       <CreateTaskModal
         isOpen={isModalOpen}
@@ -307,6 +367,8 @@ const App: React.FC = () => {
       )}
 
       <TeamSettings isOpen={isTeamSettingsOpen} onClose={() => setIsTeamSettingsOpen(false)} />
+
+      <KeyboardShortcutsHelp isOpen={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
 
       <RiskAlert tasks={filteredTasks} />
 

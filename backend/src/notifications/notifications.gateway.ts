@@ -2,6 +2,7 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDiscon
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 @WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:1234'], credentials: true } })
@@ -9,7 +10,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   @WebSocketServer() server: Server;
   private userSockets = new Map<string, Set<string>>(); // userId -> socketIds
 
-  constructor(private jwt: JwtService) { }
+  constructor(private jwt: JwtService, private prisma: PrismaService) { }
 
   async handleConnection(client: Socket) {
     try {
@@ -17,6 +18,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       if (!token) { client.disconnect(); return; }
       const payload = this.jwt.verify(token);
       const userId = payload.sub;
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, isActive: true } });
+      if (!user || !user.isActive) { client.disconnect(); return; } // 用户不存在或已禁用
       client.data.userId = userId;
       if (!this.userSockets.has(userId)) this.userSockets.set(userId, new Set());
       this.userSockets.get(userId)!.add(client.id);

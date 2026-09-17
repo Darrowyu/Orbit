@@ -24,7 +24,7 @@ export class MentionsService {
     await this.prisma.mention.deleteMany({ where: { sourceType, sourceId } });
 
     if (validIds.length > 0) {
-      await this.prisma.mention.createMany({ data: validIds.map(userId => ({ userId, sourceType, sourceId })) });
+      await this.prisma.mention.createMany({ data: validIds.map(userId => ({ userId, sourceType, sourceId })), skipDuplicates: true }); // 唯一约束兜底重复提及
       
       const sender = await this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true } });
       const typeLabels: Record<string, string> = { TASK: '任务', COMMENT: '评论' };

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TimeEntriesService } from './time-entries.service';
 
@@ -7,9 +7,14 @@ import { TimeEntriesService } from './time-entries.service';
 export class TimeEntriesController {
   constructor(private service: TimeEntriesService) {}
 
+  private getTeamId(req): string { // teamId 为空说明用户尚未加入团队
+    if (!req.user.currentTeamId) throw new ForbiddenException('请先加入或创建团队');
+    return req.user.currentTeamId;
+  }
+
   @Post('start/:taskId')
   start(@Param('taskId') taskId: string, @Body() body: { description?: string }, @Req() req) {
-    return this.service.start(taskId, req.user.id, req.user.currentTeamId, body.description);
+    return this.service.start(taskId, req.user.id, this.getTeamId(req), body.description);
   }
 
   @Post('stop/:id')
@@ -24,12 +29,12 @@ export class TimeEntriesController {
 
   @Get('task/:taskId')
   getByTask(@Param('taskId') taskId: string, @Req() req) {
-    return this.service.getByTask(taskId, req.user.currentTeamId);
+    return this.service.getByTask(taskId, this.getTeamId(req));
   }
 
   @Get('task/:taskId/total')
   getTotalByTask(@Param('taskId') taskId: string, @Req() req) {
-    return this.service.getTotalByTask(taskId, req.user.currentTeamId);
+    return this.service.getTotalByTask(taskId, this.getTeamId(req));
   }
 
   @Get('my')
